@@ -132,7 +132,7 @@ public class CombatListener implements Listener {
     }
 
     private void startRevive(Player rescuer, Player target) {
-        rescuer.sendMessage("§a[RelicWars] 구조를 시작합니다! 시선을 떼거나 움직이지 마세요.");
+        rescuer.sendMessage("§a[RelicWars] 구조를 시작합니다! (우클릭을 꾹 누르며 시선을 고정하세요)");
         target.sendMessage("§a[RelicWars] 팀원이 당신을 구조 중입니다...");
 
         Location startLoc = rescuer.getLocation().clone();

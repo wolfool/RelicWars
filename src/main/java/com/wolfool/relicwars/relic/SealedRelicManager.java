@@ -204,7 +204,7 @@ public class SealedRelicManager implements Manager, Listener {
             return;
         }
 
-        player.sendMessage("§a[RelicWars] 유물 줍기를 시작합니다! 시선을 떼거나 움직이지 마세요.");
+        player.sendMessage("§a[RelicWars] 유물 줍기를 시작합니다! (우클릭을 꾹 누르며 시선을 고정하세요)");
         Location startLoc = player.getLocation().clone();
         final int pickupSeconds = plugin.getConfigManager().getPickupSeconds();
         final int requiredTicks = pickupSeconds * 20;
