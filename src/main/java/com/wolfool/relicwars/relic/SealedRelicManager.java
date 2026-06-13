@@ -34,9 +34,6 @@ public class SealedRelicManager implements Manager, Listener {
     // ItemDisplay UUID -> 해제 스케줄러
     private final Map<UUID, BukkitTask> unsealTasks = new HashMap<>();
 
-    // 플레이어 UUID -> 줍기 태스크
-    private final Map<UUID, BukkitTask> pickupTasks = new HashMap<>();
-
     public SealedRelicManager(RelicWars plugin) {
         this.plugin = plugin;
     }
@@ -53,10 +50,6 @@ public class SealedRelicManager implements Manager, Listener {
             task.cancel();
         }
         unsealTasks.clear();
-        for (BukkitTask task : pickupTasks.values()) {
-            task.cancel();
-        }
-        pickupTasks.clear();
         plugin.getLogger().info("§a[RelicWars] SealedRelicManager 종료.");
     }
 
@@ -102,6 +95,14 @@ public class SealedRelicManager implements Manager, Listener {
                     System.currentTimeMillis() + (sealSeconds * 1000L)); // 봉인 해제 시간을 쿨타임 태그로 임시 사용
         });
 
+        // 우클릭 상호작용을 위한 투명 엔티티 생성
+        org.bukkit.entity.Interaction interaction = spawnLoc.getWorld().spawn(spawnLoc, org.bukkit.entity.Interaction.class, ent -> {
+            ent.setInteractionWidth(1.5f);
+            ent.setInteractionHeight(1.5f);
+            ent.getPersistentDataContainer().set(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE, (byte) 1);
+        });
+        display.addPassenger(interaction);
+
         startUnsealTimer(display, relic, sealSeconds);
     }
 
@@ -120,7 +121,7 @@ public class SealedRelicManager implements Manager, Listener {
                     // 봉인 해제
                     RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(originalRelic));
                     if (def != null) {
-                        display.customName(Component.text("§a[Shift로 획득] " + def.getTierColor() + def.getName()));
+                        display.customName(Component.text("§a[우클릭으로 획득] " + def.getTierColor() + def.getName()));
                     }
                     display.setGlowing(false);
                     // 봉인 완료 태그
@@ -155,29 +156,24 @@ public class SealedRelicManager implements Manager, Listener {
     // ======================== 봉인 유물 획득 ========================
 
     @EventHandler
-    public void onPlayerSneakForRelic(PlayerToggleSneakEvent event) {
-        Player player = event.getPlayer();
+    public void onPlayerInteractSealedRelic(org.bukkit.event.player.PlayerInteractEntityEvent event) {
+        if (!(event.getRightClicked() instanceof org.bukkit.entity.Interaction interaction)) return;
+        if (!interaction.getPersistentDataContainer().has(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE)) return;
 
-        if (!event.isSneaking()) {
-            // 웅크리기 해제 시 줍기 취소
-            BukkitTask task = pickupTasks.remove(player.getUniqueId());
-            if (task != null) {
-                task.cancel();
-                player.sendActionBar(Component.text("§c유물 줍기 취소됨"));
-            }
-            return;
-        }
+        Player player = event.getPlayer();
 
         // 다운된 유저는 주울 수 없음
         if (plugin.getCombatManager().isDowned(player)) return;
 
-        // 반경 3.0 블록 내의 봉인 유물 찾기
-        ItemDisplay display = getNearestSealed(player.getLocation(), 3.0);
-        if (display == null) return;
-        
-        if (!display.getPersistentDataContainer().has(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE)) {
-            return;
+        org.bukkit.entity.Entity vehicle = interaction.getVehicle();
+        ItemDisplay display = null;
+        if (vehicle instanceof ItemDisplay d) {
+            display = d;
+        } else {
+            display = getNearestSealed(interaction.getLocation(), 1.0);
         }
+        
+        if (display == null) return;
 
         Long unsealTime = display.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
         if (unsealTime != null && unsealTime > 0) {
@@ -185,7 +181,10 @@ public class SealedRelicManager implements Manager, Listener {
             return;
         }
 
-        // 인벤토리에 여유가 있는지 (유물 소지 한도) 미리 체크
+        ItemStack relic = display.getItemStack();
+        if (relic == null) return;
+
+        // 인벤토리에 여유가 있는지 체크
         int count = plugin.getRelicManager().countPlayerRelics(player);
         int max = plugin.getConfigManager().getMaxRelicsPerPlayer();
         if (count >= max) {
@@ -193,60 +192,16 @@ public class SealedRelicManager implements Manager, Listener {
             return;
         }
 
-        // 기존 줍기 태스크가 있다면 무시
-        if (pickupTasks.containsKey(player.getUniqueId())) return;
+        player.getInventory().addItem(relic);
+        RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
+        if (def != null) {
+            player.sendMessage("§a[RelicWars] " + def.getDisplayName() + " §a유물을 획득했습니다!");
+            Bukkit.broadcast(Component.text("§e[소문] 누군가 " + def.getTierColor() + def.getName() + " §e유물의 봉인을 풀었습니다!"));
+        }
 
-        // 2초(40틱) 동안 웅크리기 유지 시 줍기
-        final int requiredTicks = 40;
-        
-        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
-            int ticks = 0;
-            @Override
-            public void run() {
-                if (!player.isOnline() || !player.isSneaking() || !display.isValid() || player.getLocation().distance(display.getLocation()) > 4.0 || plugin.getCombatManager().isDowned(player)) {
-                    pickupTasks.remove(player.getUniqueId()).cancel();
-                    player.sendActionBar(Component.text("§c유물 줍기 취소됨"));
-                    return;
-                }
-
-                ticks++;
-
-                // 게이지 바 생성
-                int bars = (int) ((double) ticks / requiredTicks * 10);
-                StringBuilder gauge = new StringBuilder("§a");
-                for (int i = 0; i < 10; i++) {
-                    if (i == bars) gauge.append("§7");
-                    gauge.append("■");
-                }
-                player.sendActionBar(Component.text("§e유물 줍는 중... [" + gauge.toString() + "§e] " + String.format("%.1f", ticks / 20.0) + "초 / 2.0초"));
-
-                if (ticks >= requiredTicks) {
-                    pickupTasks.remove(player.getUniqueId()).cancel();
-
-                    ItemStack relic = display.getItemStack();
-                    if (relic == null) return;
-
-                    // 다시 한번 한도 체크
-                    if (plugin.getRelicManager().countPlayerRelics(player) >= plugin.getConfigManager().getMaxRelicsPerPlayer()) {
-                        player.sendMessage("§c[RelicWars] 유물 소지 한도를 초과했습니다.");
-                        return;
-                    }
-
-                    player.getInventory().addItem(relic);
-                    RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
-                    if (def != null) {
-                        player.sendMessage("§a[RelicWars] " + def.getDisplayName() + " §a유물을 획득했습니다!");
-                        player.sendActionBar(Component.text("§a유물 획득 완료!"));
-                        Bukkit.broadcast(Component.text("§e[소문] 누군가 " + def.getTierColor() + def.getName() + " §e유물의 봉인을 풀었습니다!"));
-                    }
-
-                    cancelTask(display.getUniqueId());
-                    display.remove();
-                }
-            }
-        }, 0L, 1L);
-
-        pickupTasks.put(player.getUniqueId(), task);
+        cancelTask(display.getUniqueId());
+        interaction.remove();
+        display.remove();
     }
 
     // ======================== 능력 연동 API ========================
@@ -296,7 +251,7 @@ public class SealedRelicManager implements Manager, Listener {
         if (relic != null) {
             RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
             if (def != null) {
-                display.customName(Component.text("§a[Shift로 획득] " + def.getTierColor() + def.getName()));
+                display.customName(Component.text("§a[우클릭으로 획득] " + def.getTierColor() + def.getName()));
             }
         }
         display.setGlowing(false);
