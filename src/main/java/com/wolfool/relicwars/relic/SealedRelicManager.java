@@ -103,12 +103,12 @@ public class SealedRelicManager implements Manager, Listener {
         });
 
         // 우클릭 상호작용을 위한 투명 엔티티 생성
-        org.bukkit.entity.Interaction interaction = spawnLoc.getWorld().spawn(spawnLoc, org.bukkit.entity.Interaction.class, ent -> {
+        Location interactionLoc = location.clone();
+        org.bukkit.entity.Interaction interaction = spawnLoc.getWorld().spawn(interactionLoc, org.bukkit.entity.Interaction.class, ent -> {
             ent.setInteractionWidth(1.5f);
             ent.setInteractionHeight(1.5f);
             ent.getPersistentDataContainer().set(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE, (byte) 1);
         });
-        display.addPassenger(interaction);
 
         startUnsealTimer(display, relic, sealSeconds);
     }
