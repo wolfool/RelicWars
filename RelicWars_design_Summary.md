@@ -40,7 +40,7 @@
 ### 3.2. 유물 소유 및 이동 통제
 - 유물은 **플레이어 인벤토리** 안에만 존재할 수 있습니다.
 - **불가 행동:** Q로 버리기, 상자/셜커/호퍼/통 보관 불가, 아이템 액자/갑옷 거치대 전시 불가.
-- **절대 파괴 불가:** 유물은 용암, TNT 폭발, 선인장, 디스폰에 완벽히 면역이며, **공허(Void)로 떨어지거나 떨어져 죽으면 가장 가까운 지상(Y=최고점)으로 순간이동되어 봉인**됩니다. (공허 동귀어진으로 유물 삭제 불가)
+- **절대 파괴 불가:** 유물은 용암, TNT 폭발, 선인장, 디스폰에 완벽히 면역이며, **공허(Void)로 떨어지거나 떨어져 죽으면 서버의 메인 스폰(Spawn) 지점으로 순간이동되어 봉인**됩니다. (공허 동귀어진으로 유물 삭제 불가)
 - **시스템 이동:** 시스템적인 드랍(다운, 사망, 강탈)이나 관리자 명령어로만 소유권이 이전됩니다.
 - **복사 방지:** 서버 로드 시 인벤토리와 DB를 대조하여 중복 복사본을 자동 파괴합니다.
 
@@ -121,7 +121,7 @@
 
 ### 8.2. 주요 행동/좌표 기믹 예시 (꼼수 차단형)
 - **#030 낙뢰의 심지:** 천둥 날씨에 자연 번개를 맞고, 체력이 절반(5칸) 이하로 깎인 상태에서 생존.
-- **#029 추락왕의 깃털:** 건축 한계고도(Y=319)에서 최하단 기반암(Y=-60)까지 단 번에 낙하하여 생존. (비행/느린 낙하 등 꼼수 사용 불가 구역)
+- **#029 추락왕의 깃털:** 건축 한계고도(Y=319)에서 최하단 기반암(Y=-60)까지 단 한 번에 낙하하여 생존. (물양동이 등 MLG 생존법은 허용하되, 비행/느린 낙하 포션 등 체공 시간 연장 꼼수 사용 시 무효)
 - **#027 용암의 눈:** 네더 특정 좌표에서 화염 저항을 무시하는 고정 데미지를 주는 '탐욕의 용암 큐브' 처치.
 
 ---
@@ -159,39 +159,43 @@
 
 ```yaml
 general:
-  prefix: "&6[RelicWars]&r "
+  prefix: "&6[RelicWars]&r " # 플러그인 채팅/메시지 접두사
 
 sealing:
-  boss-seal-seconds: 60
-  death-seal-seconds: 30
-  steal-seal-seconds: 45
+  boss-seal-seconds: 60 # 보스를 잡고 유물이 드랍되었을 때 획득 불가(봉인) 시간
+  death-seal-seconds: 30 # 플레이어 최종 사망 시 드랍되는 유물의 봉인 시간
+  steal-seal-seconds: 45 # 유물 강탈 성공 시 떨어지는 유물의 봉인 시간
 
 teams:
-  enabled: true
-  max-members: 2
-  lock-duration-minutes: 120
-  max-total-relics-to-form: 6
+  enabled: true # 팀 시스템 활성화 여부
+  max-members: 2 # 팀 최대 인원수
+  lock-duration-minutes: 120 # 한 번 팀을 맺으면 해체할 수 없는 고정 시간 (분)
+  max-total-relics-to-form: 6 # 팀 결성 시 두 명의 보유 유물 합계 제한 (이 수치 이상이면 결성 불가)
 
 downed:
-  downed-seconds: 120
-  revive-seconds: 8
-  relic-steal-seconds: 10
-  execute-seconds: 3 # 처형에 걸리는 시간
-  drop-relic-on-downed: true
-  downed-drop-selection: "lowest_number" # 가장 좋은 유물 드랍
-  final-death-drop-percent: 0.30
-  final-death-drop-selection: "highest_number" # 잉여 유물 드랍
-  steal-requires-target-has-more-relics: true
+  downed-seconds: 120 # 치명상을 입고 다운(Downed) 상태가 유지되는 시간 (이후 최종 사망)
+  revive-seconds: 8 # 팀원이 다운된 유저를 구조(부활)하는 데 걸리는 시간
+  relic-steal-seconds: 10 # 적군이 다운된 유저에게서 유물을 강탈하는 데 걸리는 시간
+  execute-seconds: 3 # 적군이 다운된 유저를 확킬(처형)하는 데 걸리는 시간
+  drop-relic-on-downed: true # 다운 시 즉시 유물 1개를 바닥에 드랍할지 여부
+  downed-drop-selection: "lowest_number" # 다운 시 드랍되는 유물 기준 (lowest_number = 가장 좋은 최상급 유물)
+  final-death-drop-percent: 0.30 # 최종 사망(확킬/자결/시간초과) 시 남아있는 유물의 드랍 비율 (30%)
+  final-death-drop-selection: "highest_number" # 최종 사망 시 드랍되는 유물 기준 (highest_number = 성능이 낮은 하급 잉여 유물 위주)
+  steal-requires-target-has-more-relics: true # 강탈 시 타겟이 유물을 가지고 있어야만 뺏을 수 있는지 여부
 
 sanity:
-  max-sanity: 100
-  tier-3-cost: 10
-  tier-4-cost: 20
-  tier-5-cost: 30
+  max-sanity: 100 # 최대 정신력 수치
+  tier-3-cost: 10 # 3단계 유물 사용 시 소모되는 정신력
+  tier-4-cost: 20 # 4단계 유물 사용 시 소모되는 정신력
+  tier-5-cost: 30 # 5단계 유물 사용 시 소모되는 정신력
 
 events:
-  disable-end-cities: true
-  disable-elytra: true
+  disable-end-cities: true # 엔드 시티(End City) 생성 및 진입 차단 여부
+  disable-elytra: true # 겉날개(Elytra) 획득 및 사용 차단 여부
+  blood-moon:
+    chance-per-night: 0.15 # 매일 밤 블러드문이 뜰 확률 (15%)
+    broadcast-interval-minutes: 3 # 블러드문 진행 중 타겟 유저 좌표 방송 주기 (분)
+    coordinate-blur: 100 # 방송되는 좌표의 오차 범위 (100 단위로 반올림하여 흐림 처리)
 ```
 
 ### 11. 관리자 수동 개입 (명령어)
