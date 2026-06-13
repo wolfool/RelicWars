@@ -11,8 +11,10 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -141,6 +143,55 @@ public class RelicListener implements Listener {
             if (RelicItemUtil.isRelic(cursor)) {
                 event.setCancelled(true);
                 player.sendMessage("§c[RelicWars] 유물은 이 보관함에 넣을 수 없습니다!");
+                return;
+            }
+        }
+
+        // 합법적인 상자(Chest, Barrel)에 유물을 넣을 때 DB 업데이트
+        if (event.getClickedInventory() != null && event.getClickedInventory().equals(topInventory)) {
+            ItemStack cursor = event.getCursor();
+            if (RelicItemUtil.isRelic(cursor)) {
+                // 커서에 든 유물을 상자에 내려놓음
+                int relicNum = RelicItemUtil.getRelicNumber(cursor);
+                plugin.getDatabaseManager().updateRelicState(relicNum, "dropped", null, topInventory.getLocation());
+            }
+        } else if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && event.getClickedInventory() != null && event.getClickedInventory().equals(event.getView().getBottomInventory())) {
+            // 쉬프트 클릭으로 상자에 넣음
+            ItemStack clickedItem = event.getCurrentItem();
+            if (RelicItemUtil.isRelic(clickedItem)) {
+                int relicNum = RelicItemUtil.getRelicNumber(clickedItem);
+                plugin.getDatabaseManager().updateRelicState(relicNum, "dropped", null, topInventory.getLocation());
+            }
+        }
+
+        // 상자에서 유물을 꺼낼 때 DB 업데이트
+        if (event.getClickedInventory() != null && event.getClickedInventory().equals(topInventory)) {
+            ItemStack clickedItem = event.getCurrentItem();
+            if (RelicItemUtil.isRelic(clickedItem) && (event.getAction() == InventoryAction.PICKUP_ALL || event.getAction() == InventoryAction.PICKUP_HALF || event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY)) {
+                int relicNum = RelicItemUtil.getRelicNumber(clickedItem);
+                plugin.getDatabaseManager().updateRelicState(relicNum, "held", player.getUniqueId().toString(), player.getLocation());
+            }
+        }
+    }
+
+    // ======================== 드랍 및 줍기 추적 ========================
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerDropItem(PlayerDropItemEvent event) {
+        ItemStack item = event.getItemDrop().getItemStack();
+        if (RelicItemUtil.isRelic(item)) {
+            int relicNum = RelicItemUtil.getRelicNumber(item);
+            plugin.getDatabaseManager().updateRelicState(relicNum, "dropped", null, event.getItemDrop().getLocation());
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityPickupItem(EntityPickupItemEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            ItemStack item = event.getItem().getItemStack();
+            if (RelicItemUtil.isRelic(item)) {
+                int relicNum = RelicItemUtil.getRelicNumber(item);
+                plugin.getDatabaseManager().updateRelicState(relicNum, "held", player.getUniqueId().toString(), player.getLocation());
             }
         }
     }

@@ -16,7 +16,7 @@ combat:
   death-drop-seal-seconds: 30    # 자결/확킬 사망으로 드랍되는 유물의 봉인 시간
   boss-drop-seal-seconds: 60     # 보스가 드랍한 유물의 봉인 시간
 
-  execute-hits: 5                # 다운된 유저를 확킬하는 데 필요한 타격 횟수 (무기/맨손 무관)
+  execute-hits: 20               # 다운된 유저를 확킬하는 데 필요한 타격 횟수 (무기/맨손 무관)
   downed-invincibility-seconds: 2  # 다운 직후 짧은 무적 시간
   downed-environmental-immunity: true  # 다운 상태에서 용암, 낙하 등 자연 데미지 면역
   revive-health: 6               # 구조(부활) 시 부활 체력 (하트 3칸 = 6 HP)

@@ -48,6 +48,7 @@ public class ConfigManager {
     private int bloodMoonBroadcastInterval;
     private boolean bloodMoonBroadcastDimension;
     private int bloodMoonCoordinateBlur;
+    private boolean forgottenRelicsEnabled;
 
     // --- 엔딩(Ending) ---
     private boolean endingRequiredAllSpawned;
@@ -75,7 +76,7 @@ public class ConfigManager {
         downedDropSealSeconds = config.getInt("combat.downed-drop-seal-seconds", 30);
         deathDropSealSeconds = config.getInt("combat.death-drop-seal-seconds", 30);
         bossDropSealSeconds = config.getInt("combat.boss-drop-seal-seconds", 60);
-        executeHits = config.getInt("combat.execute-hits", 5);
+        executeHits = config.getInt("combat.execute-hits", 20);
         downedInvincibilitySeconds = config.getInt("combat.downed-invincibility-seconds", 2);
         downedEnvironmentalImmunity = config.getBoolean("combat.downed-environmental-immunity", true);
         reviveHealth = config.getInt("combat.revive-health", 6);
@@ -102,6 +103,7 @@ public class ConfigManager {
         bloodMoonBroadcastInterval = config.getInt("event.blood-moon.broadcast-interval-minutes", 3);
         bloodMoonBroadcastDimension = config.getBoolean("event.blood-moon.broadcast-dimension", true);
         bloodMoonCoordinateBlur = config.getInt("event.blood-moon.coordinate-blur", 100);
+        forgottenRelicsEnabled = config.getBoolean("event.forgotten-relics.enabled", true);
 
         // --- 엔딩 ---
         endingRequiredAllSpawned = config.getBoolean("ending.required-all-spawned", true);
@@ -147,6 +149,7 @@ public class ConfigManager {
     public int getBloodMoonBroadcastInterval() { return bloodMoonBroadcastInterval; }
     public boolean isBloodMoonBroadcastDimension() { return bloodMoonBroadcastDimension; }
     public int getBloodMoonCoordinateBlur() { return bloodMoonCoordinateBlur; }
+    public boolean isForgottenRelicsEnabled() { return forgottenRelicsEnabled; }
 
     // --- 엔딩 ---
     public boolean isEndingRequiredAllSpawned() { return endingRequiredAllSpawned; }
