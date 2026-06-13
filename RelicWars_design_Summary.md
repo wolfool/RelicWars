@@ -186,6 +186,8 @@ downed:
 
 sanity:
   max-sanity: 100 # 최대 정신력 수치
+  regen-per-minute: 5 # 유물 미사용 시 1분당 자연 회복량
+  regen-golden-apple: 20 # 황금 사과 섭취 시 즉시 회복량
   tier-3-cost: 10 # 3단계 유물 사용 시 소모되는 정신력
   tier-4-cost: 20 # 4단계 유물 사용 시 소모되는 정신력
   tier-5-cost: 30 # 5단계 유물 사용 시 소모되는 정신력
@@ -196,7 +198,22 @@ events:
   blood-moon:
     chance-per-night: 0.15 # 매일 밤 블러드문이 뜰 확률 (15%)
     broadcast-interval-minutes: 3 # 블러드문 진행 중 타겟 유저 좌표 방송 주기 (분)
+    broadcast-dimension: true # 방송 시 타겟 유저가 위치한 차원(오버월드/네더/엔드)을 포함하여 방송
     coordinate-blur: 100 # 방송되는 좌표의 오차 범위 (100 단위로 반올림하여 흐림 처리)
+
+  forgotten-relics:
+    enabled: true # 방치된 봉인 유물 소문 에스컬레이션 활성화
+    rumor-stages:
+      - hours: 1
+        hint-type: "direction" # "남서쪽 머나먼 곳에서 잊혀진 유물의 기운이 느껴집니다."
+      - hours: 3
+        hint-type: "1000-blur" # X: 1000 단위 흐림
+      - hours: 6
+        hint-type: "500-blur"  # X: 500 단위 흐림
+      - hours: 12
+        hint-type: "100-blur"  # X: 100 단위 흐림
+      - hours: 24
+        hint-type: "50-blur"   # X: 50 단위 흐림
 ```
 
 ### 11. 관리자 수동 개입 (명령어)
