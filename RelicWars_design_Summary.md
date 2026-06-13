@@ -211,13 +211,11 @@ events:
     rumor-stages:
       - minutes: 30
         hint-type: "direction" # "남서쪽에서 잊혀진 유물의 기운이 느껴집니다."
-      - hours: 1
+      - minutes: 60
         hint-type: "1000-blur" # X: 1000 단위 흐림
-      - hours: 2
+      - minutes: 90
         hint-type: "500-blur"  # X: 500 단위 흐림
-      - hours: 3
-        hint-type: "100-blur"  # X: 100 단위 흐림
-      - hours: 4
+      - minutes: 120
         hint-type: "50-y-blur" # X, Z 50단위 흐림 + 정확한 Y좌표 포함 (파묻기 카운터)
 
 ending:
