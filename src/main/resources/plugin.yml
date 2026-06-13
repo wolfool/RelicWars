@@ -7,15 +7,13 @@ author: wolfool
 
 commands:
   relic:
-    description: RelicWars 유물 관리 명령어
-    usage: /<command> <give|take|locate|info|reload>
-    permission: relicwars.admin
-
+    description: 유물 관리 명령어
+    usage: /relic <give|take|transfer>
   team:
-    description: RelicWars 팀 관리 명령어
-    usage: /<command> <invite|accept|leave|info>
+    description: 듀오 팀 관리 명령어
+    usage: /team <invite|accept>
 
 permissions:
   relicwars.admin:
-    description: RelicWars 관리자 권한 (유물 지급/회수/위치 확인)
+    description: 관리자 명령어 권한
     default: op

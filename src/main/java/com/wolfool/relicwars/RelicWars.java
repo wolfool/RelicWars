@@ -9,6 +9,8 @@ import com.wolfool.relicwars.event.EventManager;
 import com.wolfool.relicwars.team.TeamManager;
 import com.wolfool.relicwars.boss.BossManager;
 import com.wolfool.relicwars.ending.EndingManager;
+import com.wolfool.relicwars.command.RelicCommand;
+import com.wolfool.relicwars.command.TeamCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.logging.Level;
@@ -79,9 +81,17 @@ public final class RelicWars extends JavaPlugin {
         endingManager = new EndingManager(this);
         endingManager.initialize();
 
-        // --- 4. 이벤트/커맨드 등록 ---(Phase 7에서 구현) ---
-        // TODO: /relic 명령어 등록
-        // TODO: /team 명령어 등록
+        // --- 4. 이벤트/커맨드 등록 ---
+        RelicCommand relicCommand = new RelicCommand(this);
+        if (getCommand("relic") != null) {
+            getCommand("relic").setExecutor(relicCommand);
+            getCommand("relic").setTabCompleter(relicCommand);
+        }
+
+        TeamCommand teamCommand = new TeamCommand(this);
+        if (getCommand("team") != null) {
+            getCommand("team").setExecutor(teamCommand);
+        }
 
         getLogger().info("§a============================================");
         getLogger().info("§a  RelicWars v" + getDescription().getVersion() + " 활성화 완료!");

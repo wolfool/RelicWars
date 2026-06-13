@@ -109,4 +109,40 @@ public class TeamManager implements Manager {
         String t2 = getTeamId(p2);
         return t1 != null && t1.equals(t2);
     }
+
+    /**
+     * 두 플레이어를 새로운 팀으로 결성합니다.
+     */
+    public void createTeam(Player p1, Player p2) {
+        String teamId = UUID.randomUUID().toString().substring(0, 8);
+        
+        playerTeams.put(p1.getUniqueId(), teamId);
+        playerTeams.put(p2.getUniqueId(), teamId);
+        
+        teamMembers.put(teamId, Arrays.asList(p1.getUniqueId(), p2.getUniqueId()));
+        
+        saveTeamToDatabase(p1.getUniqueId(), teamId);
+        saveTeamToDatabase(p2.getUniqueId(), teamId);
+    }
+
+    private void saveTeamToDatabase(UUID uuid, String teamId) {
+        // 백그라운드 스레드에서 저장 권장되지만, MVP이므로 동기/간단한 비동기로 처리
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try (Connection conn = plugin.getDatabaseManager().getConnection()) {
+                if (conn == null) return;
+                // 플레이어 데이터가 없을 수 있으므로 UPSERT
+                String query = """
+                    INSERT INTO players (uuid, team_id) VALUES (?, ?)
+                    ON CONFLICT(uuid) DO UPDATE SET team_id = excluded.team_id
+                """;
+                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                    pstmt.setString(1, uuid.toString());
+                    pstmt.setString(2, teamId);
+                    pstmt.executeUpdate();
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().warning("팀 저장 실패: " + e.getMessage());
+            }
+        });
+    }
 }
