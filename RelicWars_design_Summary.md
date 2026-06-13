@@ -202,17 +202,17 @@ events:
     coordinate-blur: 100 # 방송되는 좌표의 오차 범위 (100 단위로 반올림하여 흐림 처리)
 
   forgotten-relics:
-    enabled: true # 방치된 봉인 유물 소문 에스컬레이션 활성화
+    enabled: true # 방치된 모든 등급의 봉인 유물 소문 에스컬레이션 활성화
     rumor-stages:
+      - minutes: 30
+        hint-type: "direction" # "남서쪽에서 잊혀진 유물의 기운이 느껴집니다."
       - hours: 1
-        hint-type: "direction" # "남서쪽 머나먼 곳에서 잊혀진 유물의 기운이 느껴집니다."
-      - hours: 3
         hint-type: "1000-blur" # X: 1000 단위 흐림
-      - hours: 6
+      - hours: 2
         hint-type: "500-blur"  # X: 500 단위 흐림
-      - hours: 12
+      - hours: 3
         hint-type: "100-blur"  # X: 100 단위 흐림
-      - hours: 24
+      - hours: 4
         hint-type: "50-blur"   # X: 50 단위 흐림
 ```
 
