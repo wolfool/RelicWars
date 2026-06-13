@@ -113,7 +113,7 @@ public class SealedRelicManager implements Manager, Listener {
                     // 봉인 해제
                     RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(originalRelic));
                     if (def != null) {
-                        display.customName(Component.text("§a[획득 가능] " + def.getTierColor() + def.getName()));
+                        display.customName(Component.text("§a[Shift로 획득] " + def.getTierColor() + def.getName()));
                     }
                     display.setGlowing(false);
                     // 봉인 완료 태그
@@ -156,8 +156,8 @@ public class SealedRelicManager implements Manager, Listener {
         // 다운된 유저는 주울 수 없음
         if (plugin.getCombatManager().isDowned(player)) return;
 
-        // 반경 1.5 블록 내의 봉인 유물 찾기
-        ItemDisplay display = getNearestSealed(player.getLocation(), 1.5);
+        // 반경 3.0 블록 내의 봉인 유물 찾기
+        ItemDisplay display = getNearestSealed(player.getLocation(), 3.0);
         if (display == null) return;
         
         if (!display.getPersistentDataContainer().has(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE)) {
@@ -239,7 +239,7 @@ public class SealedRelicManager implements Manager, Listener {
         if (relic != null) {
             RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
             if (def != null) {
-                display.customName(Component.text("§a[획득 가능] " + def.getTierColor() + def.getName()));
+                display.customName(Component.text("§a[Shift로 획득] " + def.getTierColor() + def.getName()));
             }
         }
         display.setGlowing(false);
