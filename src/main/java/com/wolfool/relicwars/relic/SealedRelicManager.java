@@ -70,7 +70,16 @@ public class SealedRelicManager implements Manager, Listener {
     public void spawnSealedRelic(Location location, ItemStack relic, int sealSeconds) {
         if (relic == null || !RelicItemUtil.isRelic(relic)) return;
 
-        Location spawnLoc = location.clone().add(0, 0.5, 0);
+        Location groundLoc = location.clone();
+        while (groundLoc.getBlockY() > groundLoc.getWorld().getMinHeight()) {
+            org.bukkit.block.Block b = groundLoc.clone().subtract(0, 1, 0).getBlock();
+            if (b.getType().isSolid() || b.isLiquid()) {
+                break;
+            }
+            groundLoc.subtract(0, 1, 0);
+        }
+        
+        Location spawnLoc = groundLoc.clone().add(0, 0.5, 0);
         
         ItemDisplay display = spawnLoc.getWorld().spawn(spawnLoc, ItemDisplay.class, entity -> {
             entity.setItemStack(relic);
@@ -103,7 +112,7 @@ public class SealedRelicManager implements Manager, Listener {
         });
 
         // 우클릭 상호작용을 위한 투명 엔티티 생성
-        Location interactionLoc = location.clone();
+        Location interactionLoc = groundLoc.clone();
         org.bukkit.entity.Interaction interaction = spawnLoc.getWorld().spawn(interactionLoc, org.bukkit.entity.Interaction.class, ent -> {
             ent.setInteractionWidth(1.5f);
             ent.setInteractionHeight(1.5f);
