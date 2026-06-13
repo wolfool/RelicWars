@@ -17,7 +17,9 @@ import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -184,5 +186,74 @@ public class SealedRelicManager implements Manager, Listener {
         }
 
         display.remove();
+    }
+
+    // ======================== 능력 연동 API ========================
+
+    /**
+     * 활성 봉인 유물의 ItemDisplay 목록을 반환합니다.
+     */
+    public List<ItemDisplay> getActiveSealedRelics() {
+        List<ItemDisplay> result = new ArrayList<>();
+        for (UUID id : unsealTasks.keySet()) {
+            for (org.bukkit.World world : Bukkit.getWorlds()) {
+                org.bukkit.entity.Entity entity = world.getEntity(id);
+                if (entity instanceof ItemDisplay display && display.isValid()) {
+                    result.add(display);
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 특정 위치에서 가장 가까운 봉인 유물을 반환합니다.
+     * @param loc 기준 위치
+     * @param maxRange 최대 검색 범위 (블록)
+     * @return 가장 가까운 봉인 ItemDisplay, 없으면 null
+     */
+    public ItemDisplay getNearestSealed(Location loc, double maxRange) {
+        ItemDisplay nearest = null;
+        double minDist = Double.MAX_VALUE;
+        for (ItemDisplay display : getActiveSealedRelics()) {
+            if (!display.getWorld().equals(loc.getWorld())) continue;
+            double dist = display.getLocation().distance(loc);
+            if (dist <= maxRange && dist < minDist) {
+                minDist = dist;
+                nearest = display;
+            }
+        }
+        return nearest;
+    }
+
+    /**
+     * 봉인을 즉시 해제하여 획득 가능 상태로 만듭니다. (#009 파괴자의 서)
+     */
+    public void forceUnseal(ItemDisplay display) {
+        cancelTask(display.getUniqueId());
+        ItemStack relic = display.getItemStack();
+        if (relic != null) {
+            RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
+            if (def != null) {
+                display.customName(Component.text("§a[획득 가능] " + def.getTierColor() + def.getName()));
+            }
+        }
+        display.setGlowing(false);
+        display.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 0L);
+    }
+
+    /**
+     * 봉인 시간을 절반으로 단축합니다. (#019 봉인의 바늘)
+     */
+    public void halveSealTime(ItemDisplay display) {
+        Long unsealTime = display.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
+        if (unsealTime != null && unsealTime > 0) {
+            long now = System.currentTimeMillis();
+            long remaining = unsealTime - now;
+            if (remaining > 0) {
+                long halved = now + (remaining / 2);
+                display.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, halved);
+            }
+        }
     }
 }

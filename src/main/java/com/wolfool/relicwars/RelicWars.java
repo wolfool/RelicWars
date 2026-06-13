@@ -10,6 +10,7 @@ import com.wolfool.relicwars.team.TeamManager;
 import com.wolfool.relicwars.boss.BossManager;
 import com.wolfool.relicwars.ending.EndingManager;
 import com.wolfool.relicwars.relic.ability.RelicAbilityHandler;
+import com.wolfool.relicwars.sanity.SanityManager;
 import com.wolfool.relicwars.command.RelicCommand;
 import com.wolfool.relicwars.command.TeamCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -35,6 +36,7 @@ public final class RelicWars extends JavaPlugin {
     private BossManager bossManager;
     private EndingManager endingManager;
     private RelicAbilityHandler relicAbilityHandler;
+    private SanityManager sanityManager;
 
     /**
      * 플러그인 인스턴스를 반환합니다. (싱글톤)
@@ -85,6 +87,9 @@ public final class RelicWars extends JavaPlugin {
 
         relicAbilityHandler = new RelicAbilityHandler(this);
 
+        sanityManager = new SanityManager(this);
+        sanityManager.initialize();
+
         // --- 4. 이벤트/커맨드 등록 ---
         RelicCommand relicCommand = new RelicCommand(this);
         if (getCommand("relic") != null) {
@@ -105,6 +110,7 @@ public final class RelicWars extends JavaPlugin {
     @Override
     public void onDisable() {
         // --- 매니저 종료 ---
+        if (sanityManager != null) sanityManager.shutdown();
         if (endingManager != null) endingManager.shutdown();
         if (bossManager != null) bossManager.shutdown();
         if (teamManager != null) teamManager.shutdown();
@@ -147,4 +153,5 @@ public final class RelicWars extends JavaPlugin {
     public BossManager getBossManager() { return bossManager; }
     public EndingManager getEndingManager() { return endingManager; }
     public RelicAbilityHandler getRelicAbilityHandler() { return relicAbilityHandler; }
+    public SanityManager getSanityManager() { return sanityManager; }
 }

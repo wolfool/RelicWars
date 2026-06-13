@@ -38,6 +38,15 @@ public class RelicAbilityHandler {
 
     public void execute(Player player, RelicDefinition def) {
         int num = def.getNumber();
+
+        // 정신력 소모 체크 (3단계: 10, 4단계: 20, 5단계: 30)
+        int sanityCost = getSanityCost(num);
+        if (sanityCost > 0) {
+            if (!plugin.getSanityManager().consumeSanity(player, sanityCost)) {
+                return; // 정신력 부족
+            }
+        }
+
         switch (num) {
             case 30 -> execute030(player);
             case 29 -> execute029(player);
@@ -421,11 +430,15 @@ public class RelicAbilityHandler {
 
     // #019 봉인의 바늘 — 봉인 유물의 봉인 시간을 절반으로 단축
     private void execute019(Player player) {
-        player.sendMessage("§d[봉인의 바늘] 근처 봉인 유물의 봉인 시간을 조작합니다!");
-        // TODO: SealedRelicManager에서 50블록 이내 봉인 유물을 찾아 시간 절반으로 줄이기
-        // MVP: 메시지 + 나침반 핑 20초 표시 (간이 구현)
-        player.sendMessage("§7  50블록 이내 봉인 유물의 시간이 절반으로 단축되었습니다.");
-        player.sendMessage("§7  20초간 나침반 핑으로 위치가 표시됩니다.");
+        org.bukkit.entity.ItemDisplay nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 50);
+        if (nearest == null) {
+            player.sendMessage("§c[RelicWars] 50블록 이내에 봉인된 유물이 없습니다!");
+            return;
+        }
+
+        plugin.getSealedRelicManager().halveSealTime(nearest);
+        player.sendMessage("§d[봉인의 바늘] 근처 봉인 유물의 봉인 시간을 절반으로 단축했습니다!");
+        player.sendMessage("§7  위치: X:" + (int) nearest.getLocation().getX() + " Y:" + (int) nearest.getLocation().getY() + " Z:" + (int) nearest.getLocation().getZ());
     }
 
     // #018 흔적 렌즈 — 200블록 내 유물 보유자의 발자국 파티클
@@ -497,11 +510,34 @@ public class RelicAbilityHandler {
         }.runTaskTimer(plugin, 0L, 40L); // 2초마다 스캔
     }
 
-    // #015 회수자의 갈고리 — 20블록 밖 봉인 유물을 끌어오기 (MVP: 메시지)
+    // #015 회수자의 갈고리 — 20블록 밖 봉인 유물을 끌어오기
     private void execute015(Player player) {
-        player.sendMessage("§6[회수자의 갈고리] 근처 봉인 유물을 향해 갈고리를 던집니다!");
-        player.sendMessage("§7  TODO: SealedRelicManager 연동하여 유물을 끌어오는 기능 구현 예정");
-        // TODO: 20블록 이내 봉인 유물 탐색 -> 3초에 걸쳐 플레이어 위치로 이동
+        org.bukkit.entity.ItemDisplay nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 20);
+        if (nearest == null) {
+            player.sendMessage("§c[RelicWars] 20블록 이내에 봉인된 유물이 없습니다!");
+            return;
+        }
+
+        player.sendMessage("§6[회수자의 갈고리] 봉인 유물을 끌어옵니다!");
+
+        // 3초에 걸쳐 유물을 플레이어 위치로 이동
+        final org.bukkit.entity.ItemDisplay target = nearest;
+        new BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                if (ticks >= 60 || !target.isValid()) { this.cancel(); return; }
+                ticks += 3;
+
+                Location current = target.getLocation();
+                Location playerLoc = player.getLocation();
+                org.bukkit.util.Vector direction = playerLoc.toVector().subtract(current.toVector()).normalize().multiply(0.5);
+                target.teleport(current.add(direction));
+
+                // 빛 궤적 파티클
+                player.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, current, 3, 0.1, 0.1, 0.1, 0);
+            }
+        }.runTaskTimer(plugin, 0L, 3L);
     }
 
     // ======================== Batch 4: #014 ~ #010 ========================
@@ -630,11 +666,17 @@ public class RelicAbilityHandler {
 
     // ======================== Batch 5: #009 ~ #005 ========================
 
-    // #009 파괴자의 서 — 봉인 즉시 파괴 (MVP: 메시지)
+    // #009 파괴자의 서 — 봉인 즉시 파괴
     private void execute009(Player player) {
-        player.sendMessage("§5[파괴자의 서] 50블록 이내 봉인 유물의 봉인을 즉시 파괴합니다!");
-        // TODO: SealedRelicManager에서 가장 가까운 봉인 유물을 찾아 즉시 Claimable 전환
-        player.sendMessage("§7  TODO: SealedRelicManager 연동 예정");
+        org.bukkit.entity.ItemDisplay nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 50);
+        if (nearest == null) {
+            player.sendMessage("§c[RelicWars] 50블록 이내에 봉인된 유물이 없습니다!");
+            return;
+        }
+
+        plugin.getSealedRelicManager().forceUnseal(nearest);
+        player.sendMessage("§5[파괴자의 서] 봉인을 즉시 파괴했습니다! 유물이 획득 가능합니다!");
+        Bukkit.broadcast(Component.text("§5[파괴] 누군가 봉인 유물의 봉인을 강제로 파괴했습니다!"));
     }
 
     // #008 그림자 막 — 3분간 모든 탐지 무효화 + 가짜 신호
@@ -917,5 +959,20 @@ public class RelicAbilityHandler {
         if (angle < 247.5) return "북서쪽";
         if (angle < 292.5) return "북쪽";
         return "북동쪽";
+    }
+
+    /**
+     * 유물 번호에 따른 정신력 소모량을 반환합니다.
+     * 1~2단계(#030~#020): 0 (소모 없음)
+     * 3단계(#019~#011): 10
+     * 4단계(#010~#006): 20
+     * 5단계(#005~#001): 30
+     */
+    private int getSanityCost(int relicNumber) {
+        if (relicNumber >= 20) return 0;   // 1~2단계
+        if (relicNumber >= 11) return 10;  // 3단계
+        if (relicNumber >= 6) return 20;   // 4단계
+        if (relicNumber >= 1) return 30;   // 5단계
+        return 0;
     }
 }
