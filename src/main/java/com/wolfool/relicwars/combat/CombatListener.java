@@ -132,7 +132,7 @@ public class CombatListener implements Listener {
     }
 
     private void startRevive(Player rescuer, Player target) {
-        rescuer.sendMessage("§a[RelicWars] 구조를 시작합니다!");
+        rescuer.sendMessage("§a[RelicWars] 구조를 시작합니다! 시선을 떼거나 움직이지 마세요.");
         target.sendMessage("§a[RelicWars] 팀원이 당신을 구조 중입니다...");
 
         Location startLoc = rescuer.getLocation().clone();
@@ -162,6 +162,13 @@ public class CombatListener implements Listener {
                 // 거리가 멀어졌는지 확인
                 if (rescuer.getLocation().distanceSquared(startLoc) > 4.0 || rescuer.getLocation().distanceSquared(target.getLocation()) > 16.0) {
                     cancelRevive(rescuer.getUniqueId(), "구조 대상과 너무 멀어졌거나 많이 움직였습니다.");
+                    return;
+                }
+
+                // 시선 유지 확인 (십자선이 타겟을 향하고 있는지)
+                org.bukkit.entity.Entity targetEnt = rescuer.getTargetEntity(5);
+                if (targetEnt == null || !targetEnt.equals(target)) {
+                    cancelRevive(rescuer.getUniqueId(), "구조 대상에서 시선을 뗐습니다.");
                     return;
                 }
 

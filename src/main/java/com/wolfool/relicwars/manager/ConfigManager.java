@@ -16,6 +16,7 @@ public class ConfigManager {
     private int maxRelicsPerPlayer;
     private int teamMaxOnFormation;
     private boolean sealGlow;
+    private int pickupSeconds;
 
     // --- 전투(Combat) ---
     private int downedDropSealSeconds;
@@ -71,6 +72,7 @@ public class ConfigManager {
         maxRelicsPerPlayer = config.getInt("relic.max-per-player", 4);
         teamMaxOnFormation = config.getInt("relic.team-max-on-formation", 6);
         sealGlow = config.getBoolean("relic.seal-glow", true);
+        pickupSeconds = config.getInt("relic.pickup-seconds", 2);
 
         // --- 전투 ---
         downedDropSealSeconds = config.getInt("combat.downed-drop-seal-seconds", 30);
@@ -117,6 +119,7 @@ public class ConfigManager {
     public int getMaxRelicsPerPlayer() { return maxRelicsPerPlayer; }
     public int getTeamMaxOnFormation() { return teamMaxOnFormation; }
     public boolean isSealGlow() { return sealGlow; }
+    public int getPickupSeconds() { return pickupSeconds; }
 
     // --- 전투 ---
     public int getDownedDropSealSeconds() { return downedDropSealSeconds; }

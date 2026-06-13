@@ -150,6 +150,17 @@ public class RelicItemUtil {
         item.setItemMeta(meta);
     }
 
+    /**
+     * 유물의 쿨타임을 초기화합니다.
+     */
+    public static void resetCooldown(ItemStack item) {
+        if (!isRelic(item)) return;
+        ItemMeta meta = item.getItemMeta();
+        meta.getPersistentDataContainer()
+                .set(KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 0L);
+        item.setItemMeta(meta);
+    }
+
     // ======================== 유틸 ========================
 
     /**

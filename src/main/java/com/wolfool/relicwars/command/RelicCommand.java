@@ -35,6 +35,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§e/relic give <유저> <1~30> - 유물 지급");
                 sender.sendMessage("§e/relic take <유저> - 유물 압수");
                 sender.sendMessage("§e/relic revive <유저> - 다운된 유저 부활");
+                sender.sendMessage("§e/relic resetcd <유저> - 유물 쿨타임 초기화");
             }
             sender.sendMessage("§e/relic transfer <팀원> - 유물 양도 (5초 대기 필요)");
             sender.sendMessage("§e/relic scan <유물번호> - 유물 소유자 확인 (#020 소유자 전용)");
@@ -106,6 +107,26 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             plugin.getCombatManager().revivePlayer(target);
             sender.sendMessage("§a[RelicWars] " + target.getName() + "님을 강제로 부활시켰습니다.");
             target.sendMessage("§a[RelicWars] 관리자의 권능으로 부활했습니다!");
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("resetcd") && sender.hasPermission("relicwars.admin")) {
+            if (args.length < 2) return false;
+            Player target = Bukkit.getPlayer(args[1]);
+            if (target == null) {
+                sender.sendMessage("§c대상을 찾을 수 없습니다.");
+                return true;
+            }
+
+            int resetCount = 0;
+            ItemStack[] contents = target.getInventory().getContents();
+            for (ItemStack item : contents) {
+                if (RelicItemUtil.isRelic(item) && RelicItemUtil.isOnCooldown(item)) {
+                    RelicItemUtil.resetCooldown(item);
+                    resetCount++;
+                }
+            }
+            sender.sendMessage("§a[RelicWars] " + target.getName() + "님의 유물 " + resetCount + "개의 쿨타임을 초기화했습니다.");
             return true;
         }
 
@@ -241,6 +262,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 completions.add("give");
                 completions.add("take");
                 completions.add("revive");
+                completions.add("resetcd");
             }
             completions.add("transfer");
             completions.add("scan");

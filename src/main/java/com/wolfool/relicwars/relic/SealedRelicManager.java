@@ -195,9 +195,10 @@ public class SealedRelicManager implements Manager, Listener {
             return;
         }
 
-        player.sendMessage("§a[RelicWars] 유물 줍기를 시작합니다! 움직이지 마세요.");
+        player.sendMessage("§a[RelicWars] 유물 줍기를 시작합니다! 시선을 떼거나 움직이지 마세요.");
         Location startLoc = player.getLocation().clone();
-        final int requiredTicks = 40; // 2초
+        final int pickupSeconds = plugin.getConfigManager().getPickupSeconds();
+        final int requiredTicks = pickupSeconds * 20;
 
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
             int ticks = 0;
@@ -215,6 +216,14 @@ public class SealedRelicManager implements Manager, Listener {
                     player.sendActionBar(Component.text("§c유물 줍기 취소됨 (너무 많이 움직였습니다)"));
                     return;
                 }
+                
+                // 시선 유지 체크
+                org.bukkit.entity.Entity targetEnt = player.getTargetEntity(5);
+                if (targetEnt == null || !targetEnt.equals(finalInteraction)) {
+                    pickupTasks.remove(player.getUniqueId()).cancel();
+                    player.sendActionBar(Component.text("§c유물 줍기 취소됨 (시선을 뗐습니다)"));
+                    return;
+                }
 
                 ticks++;
 
@@ -225,7 +234,7 @@ public class SealedRelicManager implements Manager, Listener {
                     if (i == bars) gauge.append("§7");
                     gauge.append("■");
                 }
-                player.sendActionBar(Component.text("§e유물 줍는 중... [" + gauge.toString() + "§e] " + String.format("%.1f", ticks / 20.0) + "초 / 2.0초"));
+                player.sendActionBar(Component.text("§e유물 줍는 중... [" + gauge.toString() + "§e] " + String.format("%.1f", ticks / 20.0) + "초 / " + pickupSeconds + ".0초"));
 
                 if (ticks >= requiredTicks) {
                     pickupTasks.remove(player.getUniqueId()).cancel();
