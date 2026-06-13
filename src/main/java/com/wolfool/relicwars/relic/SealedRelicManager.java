@@ -173,29 +173,20 @@ public class SealedRelicManager implements Manager, Listener {
         if (plugin.getCombatManager().isDowned(player)) return;
 
         org.bukkit.entity.Entity vehicle = interaction.getVehicle();
-        ItemDisplay display = null;
+        ItemDisplay tempDisplay = null;
         if (vehicle instanceof ItemDisplay d) {
-            display = d;
+            tempDisplay = d;
         } else {
-            display = getNearestSealed(interaction.getLocation(), 1.0);
+            tempDisplay = getNearestSealed(interaction.getLocation(), 1.0);
         }
         
-        if (display == null) return;
+        if (tempDisplay == null) return;
+        final ItemDisplay display = tempDisplay;
+        final org.bukkit.entity.Interaction finalInteraction = interaction;
 
         Long unsealTime = display.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
         if (unsealTime != null && unsealTime > 0) {
             player.sendMessage("§c[RelicWars] 아직 유물의 봉인이 풀리지 않았습니다!");
-            return;
-        }
-
-        ItemStack relic = display.getItemStack();
-        if (relic == null) return;
-
-        // 인벤토리에 여유가 있는지 체크
-        int count = plugin.getRelicManager().countPlayerRelics(player);
-        int max = plugin.getConfigManager().getMaxRelicsPerPlayer();
-        if (count >= max) {
-            player.sendMessage("§c[RelicWars] 유물 소지 한도(" + max + "개)를 초과하여 주울 수 없습니다.");
             return;
         }
 
@@ -256,7 +247,7 @@ public class SealedRelicManager implements Manager, Listener {
                     }
 
                     cancelTask(display.getUniqueId());
-                    interaction.remove();
+                    finalInteraction.remove();
                     display.remove();
                 }
             }
