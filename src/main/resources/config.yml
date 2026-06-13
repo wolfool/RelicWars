@@ -1,0 +1,72 @@
+# ============================================================
+# RelicWars Configuration
+# 이 파일의 모든 수치를 서버 관리자가 자유롭게 변경할 수 있습니다.
+# 변경 후 /relic reload 명령어를 사용하면 서버 재시작 없이 즉시 반영됩니다.
+# ============================================================
+
+# --- 유물(Relic) 기본 설정 ---
+relic:
+  max-per-player: 4              # 1인당 최대 유물 보유 개수
+  team-max-on-formation: 6       # 팀 결성 시 최대 유물 합계 (초과 시 랜덤 드랍)
+  seal-glow: true                # 봉인 유물에 발광(Glowing) 이펙트 표시 여부
+
+# --- 전투(Combat) 설정 ---
+combat:
+  downed-drop-seal-seconds: 30   # 다운 시 드랍되는 유물의 봉인 시간
+  death-drop-seal-seconds: 30    # 자결/확킬 사망으로 드랍되는 유물의 봉인 시간
+  boss-drop-seal-seconds: 60     # 보스가 드랍한 유물의 봉인 시간
+
+  execute-hits: 5                # 다운된 유저를 확킬하는 데 필요한 타격 횟수 (무기/맨손 무관)
+  downed-invincibility-seconds: 2  # 다운 직후 짧은 무적 시간
+  downed-environmental-immunity: true  # 다운 상태에서 용암, 낙하 등 자연 데미지 면역
+  revive-health: 6               # 구조(부활) 시 부활 체력 (하트 3칸 = 6 HP)
+  revive-seconds: 8              # 팀원 구조에 걸리는 시간 (초)
+
+  drop-relic-on-downed: true     # 다운 시 즉시 유물 1개 바닥 드랍 여부
+  downed-drop-selection: "lowest_number"   # 다운 시 드랍 기준 (가장 좋은 유물)
+  final-death-drop-percent: 0.30 # 확킬/자결 시 남은 유물의 드랍 비율 (30%)
+  final-death-drop-selection: "highest_number"  # 확킬 시 드랍 기준 (가장 안 좋은 유물)
+
+  keep-inventory-on-death: true  # 사망 시 일반 인벤토리(갑옷, 검 등) 보존 여부
+  friendly-fire-enabled: false   # 팀원 간 타격 및 유물 데미지 허용 여부
+
+  combat-tag-seconds: 15         # 전투 상태(Combat Tag) 지속 시간
+
+# --- 정신력(Sanity) 설정 ---
+sanity:
+  max: 100                       # 최대 정신력
+  regen-per-minute: 5            # 분당 자연 회복량
+  golden-apple-restore: 20       # 금 사과 섭취 시 즉시 회복량
+
+# --- 팀(Team) 설정 ---
+team:
+  max-members: 2                 # 팀 최대 인원
+  invite-expire-seconds: 60      # 팀 초대 만료 시간
+
+# --- 이벤트(Event) 설정 ---
+event:
+  # 블러드문 설정
+  blood-moon:
+    chance-per-night: 0.15       # 매 밤 블러드문 발생 확률 (15%)
+    broadcast-interval-minutes: 3  # 블러드문 중 타겟 좌표 방송 주기 (분)
+    broadcast-dimension: true    # 타겟 유저 차원(오버월드/네더/엔드) 방송 포함 여부
+    coordinate-blur: 100         # 방송 좌표 오차 범위 (100단위 반올림)
+
+  # 방치 봉인 유물 소문 에스컬레이션
+  forgotten-relics:
+    enabled: true                # 방치된 유물 소문 활성화
+    rumor-stages:
+      - minutes: 30
+        hint-type: "direction"   # "남서쪽에서 잊혀진 유물의 기운이 느껴집니다."
+      - minutes: 60
+        hint-type: "1000-blur"   # X: 1000 단위 흐림
+      - minutes: 90
+        hint-type: "500-blur"    # X: 500 단위 흐림
+      - minutes: 120
+        hint-type: "50-y-blur"   # X, Z 50단위 흐림 + Y좌표 포함
+
+# --- 엔딩(Ending) 설정 ---
+ending:
+  required-all-spawned: true     # 30개 유물이 모두 1번 이상 등장해야 하는지
+  required-team-relics-to-summon: 10  # 최종 보스 소환을 위해 한 팀이 보유해야 하는 유물 개수
+  altar-defense-minutes: 30      # 제단 방어 시간 (분)
