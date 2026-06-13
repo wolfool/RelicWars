@@ -15,6 +15,8 @@ import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -233,6 +235,47 @@ public class RelicListener implements Listener {
         if (RelicItemUtil.isRelic(item)) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§c[RelicWars] 유물은 여기에 설치할 수 없습니다!");
+        }
+    }
+
+    // ======================== 채팅 가로채기 (#020 소문의 등불) ========================
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerChat(AsyncChatEvent event) {
+        org.bukkit.entity.Player player = event.getPlayer();
+        if (plugin.getRelicAbilityHandler().active020ScanMode.contains(player.getUniqueId())) {
+            event.setCancelled(true);
+            
+            String msg = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
+            
+            // 동기 스레드로 넘겨서 Bukkit API 안전하게 호출
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                plugin.getRelicAbilityHandler().active020ScanMode.remove(player.getUniqueId());
+                
+                try {
+                    int targetNum = Integer.parseInt(msg);
+                    com.wolfool.relicwars.relic.RelicDefinition def = com.wolfool.relicwars.relic.RelicDefinition.getByNumber(targetNum);
+                    if (def == null) {
+                        player.sendMessage("§c[RelicWars] 존재하지 않는 유물 번호입니다. (1~30)");
+                        return;
+                    }
+                    
+                    String ownerUuid = plugin.getDatabaseManager().getRelicOwner(targetNum);
+                    if (ownerUuid == null) {
+                        player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물은 아직 누구의 소유도 아닙니다.");
+                    } else {
+                        org.bukkit.entity.Player targetPlayer = org.bukkit.Bukkit.getPlayer(java.util.UUID.fromString(ownerUuid));
+                        if (targetPlayer != null && targetPlayer.isOnline()) {
+                            player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물의 소유자: §a" + targetPlayer.getName() + " §7(온라인)");
+                        } else {
+                            org.bukkit.OfflinePlayer offlineTarget = org.bukkit.Bukkit.getOfflinePlayer(java.util.UUID.fromString(ownerUuid));
+                            player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물의 소유자: §c" + (offlineTarget.getName() != null ? offlineTarget.getName() : "알 수 없음") + " §7(오프라인)");
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    player.sendMessage("§c[RelicWars] 유물 번호는 숫자여야 합니다. 검색이 취소되었습니다.");
+                }
+            });
         }
     }
 }
