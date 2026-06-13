@@ -26,7 +26,8 @@ public class ForgottenRelicTask extends BukkitRunnable {
     @Override
     public void run() {
         // 비동기 스레드에서 실행됨
-        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
+        Connection conn = plugin.getDatabaseManager().getConnection();
+        try {
             if (conn == null || conn.isClosed()) return;
 
             // state 가 'dropped' 인 유물들 검색

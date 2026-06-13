@@ -31,7 +31,7 @@ public class TeamManager implements Manager {
 
     @Override
     public void initialize() {
-        loadTeamsFromDatabase();
+        loadTeamsFromDB();
         plugin.getLogger().info("§a[RelicWars] TeamManager 초기화 완료.");
     }
 
@@ -41,9 +41,11 @@ public class TeamManager implements Manager {
         plugin.getLogger().info("§a[RelicWars] TeamManager 종료.");
     }
 
-    private void loadTeamsFromDatabase() {
-        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-            if (conn == null) return;
+    private void loadTeamsFromDB() {
+        Connection conn = plugin.getDatabaseManager().getConnection();
+        if (conn == null) return;
+
+        try {
             String query = "SELECT uuid, team_id FROM players WHERE team_id IS NOT NULL";
             try (PreparedStatement pstmt = conn.prepareStatement(query);
                  ResultSet rs = pstmt.executeQuery()) {
@@ -91,8 +93,9 @@ public class TeamManager implements Manager {
 
     private int countRelicsFromDB(String uuidStr) {
         int count = 0;
-        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-            if (conn == null) return 0;
+        Connection conn = plugin.getDatabaseManager().getConnection();
+        if (conn == null) return 0;
+        try {
             String query = "SELECT COUNT(*) FROM relic_ownership WHERE owner_uuid = ? AND state = 'held'";
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                 pstmt.setString(1, uuidStr);
@@ -121,15 +124,16 @@ public class TeamManager implements Manager {
         
         teamMembers.put(teamId, Arrays.asList(p1.getUniqueId(), p2.getUniqueId()));
         
-        saveTeamToDatabase(p1.getUniqueId(), teamId);
-        saveTeamToDatabase(p2.getUniqueId(), teamId);
+        saveTeamToDB(p1.getUniqueId(), teamId);
+        saveTeamToDB(p2.getUniqueId(), teamId);
     }
 
-    private void saveTeamToDatabase(UUID uuid, String teamId) {
+    private void saveTeamToDB(UUID uuid, String teamId) {
         // 백그라운드 스레드에서 저장 권장되지만, MVP이므로 동기/간단한 비동기로 처리
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                if (conn == null) return;
+            Connection conn = plugin.getDatabaseManager().getConnection();
+            if (conn == null) return;
+            try {
                 // 플레이어 데이터가 없을 수 있으므로 UPSERT
                 String query = """
                     INSERT INTO players (uuid, team_id) VALUES (?, ?)
@@ -142,6 +146,22 @@ public class TeamManager implements Manager {
                 }
             } catch (SQLException e) {
                 plugin.getLogger().warning("팀 저장 실패: " + e.getMessage());
+            }
+        });
+    }
+
+    private void removeTeamFromDB(String teamId) {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            Connection conn = plugin.getDatabaseManager().getConnection();
+            if (conn == null) return;
+            try {
+                String query = "DELETE FROM teams WHERE team_id = ?";
+                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                    pstmt.setString(1, teamId);
+                    pstmt.executeUpdate();
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().warning("팀 DB 삭제 실패: " + e.getMessage());
             }
         });
     }

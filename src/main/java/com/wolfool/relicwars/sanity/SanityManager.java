@@ -135,8 +135,9 @@ public class SanityManager implements Manager {
     // ======================== DB 연동 ========================
 
     private void loadAllFromDB() {
-        try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-            if (conn == null) return;
+        Connection conn = plugin.getDatabaseManager().getConnection();
+        if (conn == null) return;
+        try {
             try (PreparedStatement pstmt = conn.prepareStatement("SELECT uuid, sanity FROM players WHERE sanity IS NOT NULL");
                  ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -151,9 +152,11 @@ public class SanityManager implements Manager {
     }
 
     private void saveAllToDB() {
+        Connection conn = plugin.getDatabaseManager().getConnection();
+        if (conn == null) return;
+        
         for (Map.Entry<UUID, Integer> entry : sanityMap.entrySet()) {
-            try (Connection conn = plugin.getDatabaseManager().getConnection()) {
-                if (conn == null) continue;
+            try {
                 String query = """
                     INSERT INTO players (uuid, name, sanity) VALUES (?, ?, ?)
                     ON CONFLICT(uuid) DO UPDATE SET sanity = excluded.sanity
