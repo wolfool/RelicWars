@@ -9,7 +9,7 @@ import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
@@ -148,18 +148,21 @@ public class SealedRelicManager implements Manager, Listener {
     // ======================== 봉인 유물 획득 ========================
 
     @EventHandler
-    public void onInteractSealedRelic(PlayerInteractEntityEvent event) {
-        if (!(event.getRightClicked() instanceof ItemDisplay display)) return;
+    public void onPlayerSneakForRelic(PlayerToggleSneakEvent event) {
+        if (!event.isSneaking()) return; // 웅크리기 해제 시 무시
+
+        Player player = event.getPlayer();
+
+        // 다운된 유저는 주울 수 없음
+        if (plugin.getCombatManager().isDowned(player)) return;
+
+        // 반경 1.5 블록 내의 봉인 유물 찾기
+        ItemDisplay display = getNearestSealed(player.getLocation(), 1.5);
+        if (display == null) return;
         
         if (!display.getPersistentDataContainer().has(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE)) {
             return;
         }
-
-        event.setCancelled(true);
-        Player player = event.getPlayer();
-
-        // 다운된 유저는 주울 수 없음
-        // TODO: CombatManager 체크 (player.isDowned())
 
         Long unsealTime = display.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
         if (unsealTime != null && unsealTime > 0) {
@@ -185,6 +188,7 @@ public class SealedRelicManager implements Manager, Listener {
             Bukkit.broadcast(Component.text("§e[소문] 누군가 " + def.getTierColor() + def.getName() + " §e유물의 봉인을 풀었습니다!"));
         }
 
+        cancelTask(display.getUniqueId());
         display.remove();
     }
 

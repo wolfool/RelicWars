@@ -64,7 +64,6 @@ public class CombatManager implements Manager {
         executeHits.put(player.getUniqueId(), 0);
 
         player.setHealth(20.0); // 다운 시 체력은 꽉 찬 상태로 유지 (시스템적 체력)
-        player.setFoodLevel(6); // 뛰지 못하게
         player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, Integer.MAX_VALUE, 4, false, false, false));
         player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, Integer.MAX_VALUE, 250, false, false, false)); // 점프 불가
         player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, Integer.MAX_VALUE, 0, false, false, false)); // 시야 제한
