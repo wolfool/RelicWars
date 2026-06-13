@@ -34,6 +34,9 @@ public class SealedRelicManager implements Manager, Listener {
     // ItemDisplay UUID -> 해제 스케줄러
     private final Map<UUID, BukkitTask> unsealTasks = new HashMap<>();
 
+    // 플레이어 UUID -> 줍기 태스크
+    private final Map<UUID, BukkitTask> pickupTasks = new HashMap<>();
+
     public SealedRelicManager(RelicWars plugin) {
         this.plugin = plugin;
     }
@@ -44,12 +47,14 @@ public class SealedRelicManager implements Manager, Listener {
         plugin.getLogger().info("§a[RelicWars] SealedRelicManager 초기화 완료.");
     }
 
-    @Override
-    public void shutdown() {
         for (BukkitTask task : unsealTasks.values()) {
             task.cancel();
         }
         unsealTasks.clear();
+        for (BukkitTask task : pickupTasks.values()) {
+            task.cancel();
+        }
+        pickupTasks.clear();
         plugin.getLogger().info("§a[RelicWars] SealedRelicManager 종료.");
     }
 
@@ -149,9 +154,17 @@ public class SealedRelicManager implements Manager, Listener {
 
     @EventHandler
     public void onPlayerSneakForRelic(PlayerToggleSneakEvent event) {
-        if (!event.isSneaking()) return; // 웅크리기 해제 시 무시
-
         Player player = event.getPlayer();
+
+        if (!event.isSneaking()) {
+            // 웅크리기 해제 시 줍기 취소
+            BukkitTask task = pickupTasks.remove(player.getUniqueId());
+            if (task != null) {
+                task.cancel();
+                player.sendActionBar(Component.text("§c유물 줍기 취소됨"));
+            }
+            return;
+        }
 
         // 다운된 유저는 주울 수 없음
         if (plugin.getCombatManager().isDowned(player)) return;
@@ -170,10 +183,7 @@ public class SealedRelicManager implements Manager, Listener {
             return;
         }
 
-        ItemStack relic = display.getItemStack();
-        if (relic == null) return;
-
-        // 인벤토리에 지급 시도
+        // 인벤토리에 여유가 있는지 (유물 소지 한도) 미리 체크
         int count = plugin.getRelicManager().countPlayerRelics(player);
         int max = plugin.getConfigManager().getMaxRelicsPerPlayer();
         if (count >= max) {
@@ -181,15 +191,60 @@ public class SealedRelicManager implements Manager, Listener {
             return;
         }
 
-        player.getInventory().addItem(relic);
-        RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
-        if (def != null) {
-            player.sendMessage("§a[RelicWars] " + def.getDisplayName() + " §a유물을 획득했습니다!");
-            Bukkit.broadcast(Component.text("§e[소문] 누군가 " + def.getTierColor() + def.getName() + " §e유물의 봉인을 풀었습니다!"));
-        }
+        // 기존 줍기 태스크가 있다면 무시
+        if (pickupTasks.containsKey(player.getUniqueId())) return;
 
-        cancelTask(display.getUniqueId());
-        display.remove();
+        // 2초(40틱) 동안 웅크리기 유지 시 줍기
+        final int requiredTicks = 40;
+        
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                if (!player.isOnline() || !player.isSneaking() || !display.isValid() || player.getLocation().distance(display.getLocation()) > 4.0 || plugin.getCombatManager().isDowned(player)) {
+                    pickupTasks.remove(player.getUniqueId()).cancel();
+                    player.sendActionBar(Component.text("§c유물 줍기 취소됨"));
+                    return;
+                }
+
+                ticks++;
+
+                // 게이지 바 생성
+                int bars = (int) ((double) ticks / requiredTicks * 10);
+                StringBuilder gauge = new StringBuilder("§a");
+                for (int i = 0; i < 10; i++) {
+                    if (i == bars) gauge.append("§7");
+                    gauge.append("■");
+                }
+                player.sendActionBar(Component.text("§e유물 줍는 중... [" + gauge.toString() + "§e] " + String.format("%.1f", ticks / 20.0) + "초 / 2.0초"));
+
+                if (ticks >= requiredTicks) {
+                    pickupTasks.remove(player.getUniqueId()).cancel();
+
+                    ItemStack relic = display.getItemStack();
+                    if (relic == null) return;
+
+                    // 다시 한번 한도 체크
+                    if (plugin.getRelicManager().countPlayerRelics(player) >= plugin.getConfigManager().getMaxRelicsPerPlayer()) {
+                        player.sendMessage("§c[RelicWars] 유물 소지 한도를 초과했습니다.");
+                        return;
+                    }
+
+                    player.getInventory().addItem(relic);
+                    RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
+                    if (def != null) {
+                        player.sendMessage("§a[RelicWars] " + def.getDisplayName() + " §a유물을 획득했습니다!");
+                        player.sendActionBar(Component.text("§a유물 획득 완료!"));
+                        Bukkit.broadcast(Component.text("§e[소문] 누군가 " + def.getTierColor() + def.getName() + " §e유물의 봉인을 풀었습니다!"));
+                    }
+
+                    cancelTask(display.getUniqueId());
+                    display.remove();
+                }
+            }
+        }, 0L, 1L);
+
+        pickupTasks.put(player.getUniqueId(), task);
     }
 
     // ======================== 능력 연동 API ========================

@@ -194,6 +194,7 @@ public class RelicAbilityHandler {
         
         // 주변 적에게 어둠(Darkness) 부여
         for (Player p : player.getWorld().getPlayers()) {
+            if (p.equals(player)) continue; // 시전자 제외
             if (p.getLocation().distance(player.getLocation()) <= 30.0) {
                 if (!plugin.getTeamManager().isSameTeam(player, p)) {
                     p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 600, 0, false, false));
