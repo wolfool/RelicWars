@@ -100,15 +100,15 @@ public class RelicListener implements Listener {
         }
 
         // --- 능력 발동 (Phase 6에서 각 유물별로 구현) ---
-        // 여기서는 쿨타임만 시작하고, 실제 능력은 TODO
         if (def.getCooldownSeconds() > 0) {
             RelicItemUtil.startCooldown(item, def.getCooldownSeconds());
             player.sendMessage("§a[RelicWars] " + def.getDisplayName() +
                     " §a능력 발동! (쿨타임: §e" +
                     RelicItemUtil.formatCooldown(def.getCooldownSeconds()) + "§a)");
-        }
 
-        // TODO: 각 유물 번호에 맞는 실제 능력 실행 로직 (Phase 6)
+            // 유물 스킬 실행
+            plugin.getRelicAbilityHandler().execute(player, def);
+        }
     }
 
     // ======================== 보관 제한 ========================

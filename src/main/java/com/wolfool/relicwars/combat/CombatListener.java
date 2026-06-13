@@ -41,6 +41,14 @@ public class CombatListener implements Listener {
     public void onPlayerDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
+        // #029 낙하 데미지 면역 체크
+        if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
+            if (plugin.getRelicAbilityHandler().active029FallImmunity.contains(player.getUniqueId())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
         // 이미 다운된 상태라면
         if (combatManager.isDowned(player)) {
             handleDownedDamage(event, player);
@@ -126,15 +134,24 @@ public class CombatListener implements Listener {
     }
 
     private void startRevive(Player rescuer, Player target) {
-        rescuer.sendMessage("§a[RelicWars] 구조를 시작합니다! (8초간 근처에서 움직이지 마세요)");
+        rescuer.sendMessage("§a[RelicWars] 구조를 시작합니다!");
         target.sendMessage("§a[RelicWars] 팀원이 당신을 구조 중입니다...");
 
         Location startLoc = rescuer.getLocation().clone();
+        
+        // #025 최후의 봉합 구조 시간 단축 체크
         int reviveSeconds = plugin.getConfigManager().getReviveSeconds();
+        if (plugin.getRelicAbilityHandler().active025FastRevive.contains(rescuer.getUniqueId()) ||
+            plugin.getRelicAbilityHandler().active025FastRevive.contains(target.getUniqueId())) {
+            reviveSeconds = 2; // 8초 -> 2초로 대폭 단축
+            rescuer.sendMessage("§d[최후의 봉합] §5구조 시간이 대폭 단축됩니다!");
+        }
+
+        final int finalReviveSeconds = reviveSeconds;
 
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
             int ticks = 0;
-            final int totalTicks = reviveSeconds * 20;
+            final int totalTicks = finalReviveSeconds * 20;
 
             @Override
             public void run() {
@@ -159,13 +176,22 @@ public class CombatListener implements Listener {
                 ticks += 5; // 0.25초마다 체크
                 
                 if (ticks % 20 == 0) {
-                    rescuer.sendActionBar(Component.text("§a구조 중... " + (ticks / 20) + " / " + reviveSeconds + "초"));
+                    rescuer.sendActionBar(Component.text("§a구조 중... " + (ticks / 20) + " / " + finalReviveSeconds + "초"));
                 }
 
                 if (ticks >= totalTicks) {
                     // 구조 완료
                     combatManager.revivePlayer(target);
                     rescuer.sendMessage("§a[RelicWars] 구조를 성공적으로 마쳤습니다!");
+                    
+                    // #025 최후의 봉합 도주 버프
+                    if (plugin.getRelicAbilityHandler().active025FastRevive.contains(rescuer.getUniqueId()) ||
+                        plugin.getRelicAbilityHandler().active025FastRevive.contains(target.getUniqueId())) {
+                        target.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SPEED, 100, 1, false, false));
+                        target.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE, 100, 0, false, false));
+                        target.sendMessage("§d[최후의 봉합] §5강력한 도주 버프가 적용되었습니다!");
+                    }
+                    
                     reviveTasks.remove(rescuer.getUniqueId()).cancel();
                 }
             }

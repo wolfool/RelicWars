@@ -9,6 +9,7 @@ import com.wolfool.relicwars.event.EventManager;
 import com.wolfool.relicwars.team.TeamManager;
 import com.wolfool.relicwars.boss.BossManager;
 import com.wolfool.relicwars.ending.EndingManager;
+import com.wolfool.relicwars.relic.ability.RelicAbilityHandler;
 import com.wolfool.relicwars.command.RelicCommand;
 import com.wolfool.relicwars.command.TeamCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -33,6 +34,7 @@ public final class RelicWars extends JavaPlugin {
     private TeamManager teamManager;
     private BossManager bossManager;
     private EndingManager endingManager;
+    private RelicAbilityHandler relicAbilityHandler;
 
     /**
      * 플러그인 인스턴스를 반환합니다. (싱글톤)
@@ -80,6 +82,8 @@ public final class RelicWars extends JavaPlugin {
 
         endingManager = new EndingManager(this);
         endingManager.initialize();
+
+        relicAbilityHandler = new RelicAbilityHandler(this);
 
         // --- 4. 이벤트/커맨드 등록 ---
         RelicCommand relicCommand = new RelicCommand(this);
@@ -142,4 +146,5 @@ public final class RelicWars extends JavaPlugin {
     public TeamManager getTeamManager() { return teamManager; }
     public BossManager getBossManager() { return bossManager; }
     public EndingManager getEndingManager() { return endingManager; }
+    public RelicAbilityHandler getRelicAbilityHandler() { return relicAbilityHandler; }
 }
