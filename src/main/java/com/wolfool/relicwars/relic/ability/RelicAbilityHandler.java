@@ -36,6 +36,7 @@ public class RelicAbilityHandler {
     public final Set<UUID> active025FastRevive = new HashSet<>();
     public final Set<UUID> active023Marked = new HashSet<>(); // 표식이 찍힌 대상
     public final Map<UUID, UUID> active021Duel = new HashMap<>(); // 결투 중인 쌍 (대상 -> 시전자)
+    public final Set<UUID> active020ScanMode = new HashSet<>(); // /relic scan 입력 대기 상태
 
     public RelicAbilityHandler(RelicWars plugin) {
         this.plugin = plugin;
@@ -428,16 +429,34 @@ public class RelicAbilityHandler {
 
     public void execute020Option2(Player player) {
         player.sendMessage("§d[소문의 등불] §f현재 바닥에 봉인된 유물을 스캔합니다...");
-        player.sendMessage("§7  [봉인] 활성화된 봉인 유물을 검색했습니다.");
+        java.util.List<org.bukkit.entity.ItemDisplay> sealed = plugin.getSealedRelicManager().getActiveSealedRelics();
+        if (sealed.isEmpty()) {
+            player.sendMessage("§c  [봉인] 현재 서버 내에 봉인된 유물이 없습니다.");
+        } else {
+            for (org.bukkit.entity.ItemDisplay display : sealed) {
+                Location loc = display.getLocation();
+                player.sendMessage("§e  [봉인] 위치: X:" + loc.getBlockX() + " Y:" + loc.getBlockY() + " Z:" + loc.getBlockZ());
+            }
+        }
     }
 
     public void execute020Option3(Player player) {
         player.sendMessage("§d[소문의 등불] §f유물 소유자 검색 모드를 선택했습니다.");
-        Component scanMsg = Component.text("§e  [정보] 특정 유물 소유자를 알고 싶다면: ")
+        active020ScanMode.add(player.getUniqueId());
+        
+        Component scanMsg = Component.text("§e  [정보] 30초 내에 검색할 유물 번호를 입력하세요: ")
                 .append(Component.text("§a/relic scan <번호>")
                         .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/relic scan "))
                         .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text("클릭하여 채팅창에 명령어 입력"))));
         player.sendMessage(scanMsg);
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (active020ScanMode.remove(player.getUniqueId())) {
+                if (player.isOnline()) {
+                    player.sendMessage("§c[소문의 등불] 검색 대기 시간이 만료되었습니다.");
+                }
+            }
+        }, 600L); // 30초
     }
 
     public void execute020Option4(Player player) {

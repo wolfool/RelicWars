@@ -172,6 +172,11 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            if (!plugin.getRelicAbilityHandler().active020ScanMode.contains(player.getUniqueId()) && !player.hasPermission("relicwars.admin")) {
+                player.sendMessage("§c[RelicWars] #020 소문의 등불을 우클릭하여 GUI에서 '소유자 검색'을 먼저 선택해야 합니다.");
+                return true;
+            }
+
             try {
                 int targetNum = Integer.parseInt(args[1]);
                 RelicDefinition def = RelicDefinition.getByNumber(targetNum);
@@ -193,6 +198,9 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                         player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물의 소유자: §c" + (offlineTarget.getName() != null ? offlineTarget.getName() : "알 수 없음") + " §7(오프라인)");
                     }
                 }
+                
+                // 검색 완료 후 모드 해제
+                plugin.getRelicAbilityHandler().active020ScanMode.remove(player.getUniqueId());
             } catch (NumberFormatException e) {
                 player.sendMessage("§c[RelicWars] 유물 번호는 숫자여야 합니다.");
             }
