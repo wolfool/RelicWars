@@ -177,7 +177,10 @@ downed:
   downed-seconds: 120 # 치명상을 입고 다운(Downed) 상태가 유지되는 시간 (이후 최종 사망)
   revive-seconds: 8 # 팀원이 다운된 유저를 구조(부활)하는 데 걸리는 시간
   relic-steal-seconds: 10 # 적군이 다운된 유저에게서 유물을 강탈하는 데 걸리는 시간
-  execute-seconds: 3 # 적군이 다운된 유저를 확킬(처형)하는 데 걸리는 시간
+  execute-hits: 5 # 다운된 유저를 확킬(처형)하는 데 필요한 타격 횟수 (무기/맨손 무관하게 고정 타수)
+  downed-invincibility-seconds: 2 # 다운 직후 주어지는 짧은 무적 시간 (연속 확킬 방지)
+  downed-environmental-immunity: true # 다운 상태에서 용암, 낙하, 익사 등 자연 데미지 면역 여부
+  steal-interruptible: false # 강탈(10초간 우클릭) 중 적에게 피격당했을 때 타이머가 취소되는지 여부 (우직하게 뽑기 가능)
   drop-relic-on-downed: true # 다운 시 즉시 유물 1개를 바닥에 드랍할지 여부
   downed-drop-selection: "lowest_number" # 다운 시 드랍되는 유물 기준 (lowest_number = 가장 좋은 최상급 유물)
   keep-inventory-on-death: true # 사망 시 일반 인벤토리(갑옷, 검 등) 보존 여부 (true = 보존됨, 유물만 룰에 따라 드랍)
