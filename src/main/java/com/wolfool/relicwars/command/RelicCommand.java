@@ -37,6 +37,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§e/relic revive <유저> - 다운된 유저 부활");
             }
             sender.sendMessage("§e/relic transfer <팀원> - 유물 양도 (5초 대기 필요)");
+            sender.sendMessage("§e/relic scan <유물번호> - 유물 소유자 확인 (#020 소유자 전용)");
             return true;
         }
 
@@ -130,6 +131,53 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("scan")) {
+            if (!(sender instanceof Player player)) return true;
+            if (args.length < 2) {
+                player.sendMessage("§c[RelicWars] 사용법: /relic scan <유물번호>");
+                return true;
+            }
+
+            boolean hasLantern = false;
+            for (ItemStack item : player.getInventory().getContents()) {
+                if (RelicItemUtil.isRelic(item) && RelicItemUtil.getRelicNumber(item) == 20) {
+                    hasLantern = true;
+                    break;
+                }
+            }
+
+            if (!hasLantern && !player.hasPermission("relicwars.admin")) {
+                player.sendMessage("§c[RelicWars] '#020 소문의 등불' 유물 소유자만 사용할 수 있습니다.");
+                return true;
+            }
+
+            try {
+                int targetNum = Integer.parseInt(args[1]);
+                RelicDefinition def = RelicDefinition.getByNumber(targetNum);
+                if (def == null) {
+                    player.sendMessage("§c[RelicWars] 존재하지 않는 유물 번호입니다. (1~30)");
+                    return true;
+                }
+                
+                String ownerUuid = plugin.getDatabaseManager().getRelicOwner(targetNum);
+                if (ownerUuid == null) {
+                    player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물은 현재 소유자가 없거나 맵 어딘가에 있습니다.");
+                } else {
+                    Player target = Bukkit.getPlayer(UUID.fromString(ownerUuid));
+                    if (target != null && target.isOnline()) {
+                        player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물의 소유자: §c" + target.getName());
+                    } else {
+                        // 오프라인이거나 다른 월드인 경우 이름 가져오기
+                        org.bukkit.OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(UUID.fromString(ownerUuid));
+                        player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물의 소유자: §c" + (offlineTarget.getName() != null ? offlineTarget.getName() : "알 수 없음") + " §7(오프라인)");
+                    }
+                }
+            } catch (NumberFormatException e) {
+                player.sendMessage("§c[RelicWars] 유물 번호는 숫자여야 합니다.");
+            }
+            return true;
+        }
+
         return false;
     }
 
@@ -195,9 +243,16 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 completions.add("revive");
             }
             completions.add("transfer");
+            completions.add("scan");
         } else if (args.length == 2) {
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                completions.add(p.getName());
+            if (args[0].equalsIgnoreCase("scan")) {
+                for (int i = 1; i <= 30; i++) {
+                    completions.add(String.valueOf(i));
+                }
+            } else {
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    completions.add(p.getName());
+                }
             }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("give") && sender.hasPermission("relicwars.admin")) {
             for (int i = 1; i <= 30; i++) {

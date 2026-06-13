@@ -141,6 +141,26 @@ public class DatabaseManager {
     }
 
     /**
+     * 유물의 현재 소유자 UUID를 조회합니다.
+     * @param relicNumber 유물 번호
+     * @return 소유자의 UUID 문자열 (소유자가 없거나 스폰되지 않았으면 null)
+     */
+    public String getRelicOwner(int relicNumber) {
+        String query = "SELECT owner_uuid FROM relic_ownership WHERE relic_number = ? AND state = 'held'";
+        try (java.sql.PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, relicNumber);
+            try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("owner_uuid");
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.WARNING, "유물 소유자 조회 실패: #" + relicNumber, e);
+        }
+        return null;
+    }
+
+    /**
      * 데이터베이스 연결을 반환합니다.
      */
     public Connection getConnection() {

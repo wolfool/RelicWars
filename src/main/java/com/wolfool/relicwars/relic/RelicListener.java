@@ -176,12 +176,12 @@ public class RelicListener implements Listener {
 
     // ======================== 드랍 및 줍기 추적 ========================
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         ItemStack item = event.getItemDrop().getItemStack();
         if (RelicItemUtil.isRelic(item)) {
-            int relicNum = RelicItemUtil.getRelicNumber(item);
-            plugin.getDatabaseManager().updateRelicState(relicNum, "dropped", null, event.getItemDrop().getLocation());
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§c[RelicWars] 유물은 'Q'키로 버릴 수 없습니다! (사망 시, 혹은 /relic transfer 로 양도만 가능)");
         }
     }
 
