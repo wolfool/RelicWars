@@ -1,4 +1,4 @@
-# RelicWars AI 협업 개발 가이드라인 (AI Development Guidelines)
+﻿# RelicWars AI 협업 개발 가이드라인 (AI Development Guidelines)
 
 이 문서는 `RelicWars` 플러그인 개발을 위해 참여하는 모든 AI 어시스턴트(및 개발자)가 일관된 방향성을 유지하고 충돌 없이 협업하기 위해 작성된 가이드라인입니다. 개발 전 또는 코드를 수정하기 전에 반드시 이 문서를 숙지해 주세요.
 
@@ -12,7 +12,7 @@
   - 핵심 시스템 요약: `RelicWars_design_Summary.md`
 
 ## 2. AI 협업 및 코드 작성 원칙 (매우 중요)
-1. **NMS 절대 사용 금지:** 버전 호환성을 위해 NMS(Nether Minecraft Server) 코드는 일절 사용하지 않습니다. 모든 기능은 오직 **Paper API 1.21.4**만을 사용하여 구현합니다.
+1. **NMS 절대 사용 금지:** 버전 호환성을 위해 NMS(net.minecraft.server) 코드는 일절 사용하지 않습니다. 모든 기능은 오직 **Paper API 1.21.4**만을 사용하여 구현합니다. (단, MythicMobs나 ModelEngine 같은 타 플러그인 연동을 통해 커스텀 몹을 구현하는 것은 전적으로 허용 및 권장됩니다.)
 2. **기준 문서 우선:** 코드를 짤 때 기획서(Full.txt 및 Summary.md)와 충돌하는 내용이 있다면, 기획서를 우선시합니다. 만약 기획의 수정이 불가피하다면 사용자의 승인을 받고 기획서를 먼저 업데이트한 후 코드를 작성합니다.
 3. **PersistentDataContainer (PDC) 활용:** 유물이나 특수 아이템을 식별할 때 이름(DisplayName)이나 로어(Lore)에 의존하지 마십시오. 반드시 PDC를 사용해 고유 ID(`relic_001` 등)를 저장하고 검증해야 합니다.
 4. **비동기(Async) 처리:** SQLite 데이터베이스(relicwars.db)에 접근하여 저장/불러오기를 할 때는 절대 메인 서버 틱(Tick)을 멈추게 해선 안 됩니다. DB 작업은 반드시 비동기(Asynchronous) 스레드에서 처리하세요.
