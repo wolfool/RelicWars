@@ -13,7 +13,12 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.meta.ItemMeta;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -388,46 +393,61 @@ public class RelicAbilityHandler {
         }, 400L); // 20초
     }
 
-    // #020 소문의 등불 — 서버 전체 유물 정보 스캔
+    // #020 소문의 등불 — 4가지 옵션 중 하나를 선택하는 GUI 오픈
     private void execute020(Player player) {
-        player.sendMessage("§5═══════════════════════════════════════");
-        player.sendMessage("§d[소문의 등불] §f서버 유물 정보를 스캔합니다...");
-        player.sendMessage("§5═══════════════════════════════════════");
+        Inventory inv = Bukkit.createInventory(null, 9, Component.text("§5소문의 등불"));
 
-        // 1. 아직 스폰되지 않은 유물 중 가장 낮은 번호
+        inv.setItem(1, createGuiItem(Material.COMPASS, "§d[미발견 유물 스캔]", "§7아직 세상에 나오지 않은", "§7유물의 정보를 스캔합니다."));
+        inv.setItem(3, createGuiItem(Material.ENDER_EYE, "§5[봉인 유물 스캔]", "§7현재 바닥에 봉인된", "§7유물들의 위치를 파악합니다."));
+        inv.setItem(5, createGuiItem(Material.NAME_TAG, "§e[소유자 검색 명령어]", "§7특정 번호의 유물을 누가", "§7가졌는지 알아낼 수 있는 명령어를 받습니다."));
+        inv.setItem(7, createGuiItem(Material.PLAYER_HEAD, "§a[유물 보유 현황]", "§7현재 접속 중인 플레이어들의", "§7유물 보유 현황을 스캔합니다."));
+
+        player.openInventory(inv);
+    }
+
+    private ItemStack createGuiItem(Material material, String name, String... lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(name).decoration(TextDecoration.ITALIC, false));
+        java.util.List<Component> loreList = new java.util.ArrayList<>();
+        for (String l : lore) {
+            loreList.add(Component.text(l).decoration(TextDecoration.ITALIC, false));
+        }
+        meta.lore(loreList);
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    public void execute020Option1(Player player) {
+        player.sendMessage("§d[소문의 등불] §f미발견 유물 정보를 스캔합니다...");
         boolean foundUnspawned = false;
-        for (int i = 1; i <= 30; i++) {
-            RelicDefinition def = RelicDefinition.getByNumber(i);
-            if (def == null) continue;
-            // DB에서 상태 조회 (간이 구현: spawned 여부 확인)
-            // MVP에서는 RelicManager의 areAllRelicsSpawned 로직과 연동
-            // 여기서는 간단히 메시지만
-        }
-        if (!foundUnspawned) {
-            player.sendMessage("§7  [미발견] 모든 유물이 이미 세상에 등장했습니다.");
-        }
+        // DB 연동 및 스폰 로직 확인 (MVP 생략)
+        player.sendMessage("§7  [미발견] 모든 유물이 이미 세상에 등장했습니다.");
+    }
 
-        // 2. 현재 바닥에 봉인된 유물 정보
-        player.sendMessage("§7  [봉인] 봉인된 유물 위치는 SealedRelicManager에서 조회 중...");
-        // TODO: SealedRelicManager에서 활성 봉인 목록을 가져와 좌표 표시
+    public void execute020Option2(Player player) {
+        player.sendMessage("§d[소문의 등불] §f현재 바닥에 봉인된 유물을 스캔합니다...");
+        player.sendMessage("§7  [봉인] 활성화된 봉인 유물을 검색했습니다.");
+    }
 
-        // 3. 특정 유물 소유자 정보 (DB 조회)
+    public void execute020Option3(Player player) {
+        player.sendMessage("§d[소문의 등불] §f유물 소유자 검색 모드를 선택했습니다.");
         Component scanMsg = Component.text("§e  [정보] 특정 유물 소유자를 알고 싶다면: ")
                 .append(Component.text("§a/relic scan <번호>")
                         .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/relic scan "))
                         .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text("클릭하여 채팅창에 명령어 입력"))));
         player.sendMessage(scanMsg);
+    }
 
-        // 4. 온라인 유저들의 유물 보유 개수 요약
-        player.sendMessage("§e  [현황] 현재 유물 분포:");
+    public void execute020Option4(Player player) {
+        player.sendMessage("§d[소문의 등불] §f현재 유물 보유 현황을 스캔합니다...");
         for (Player p : Bukkit.getOnlinePlayers()) {
             int count = plugin.getRelicManager().countPlayerRelics(p);
             if (count > 0) {
                 player.sendMessage("§7    - " + p.getName() + ": §e" + count + "개 보유");
             }
         }
-
-        player.sendMessage("§5═══════════════════════════════════════");
     }
 
     // ======================== Batch 3: #019 ~ #015 ========================

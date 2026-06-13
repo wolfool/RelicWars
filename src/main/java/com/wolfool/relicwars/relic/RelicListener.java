@@ -123,6 +123,28 @@ public class RelicListener implements Listener {
 
         Inventory topInventory = event.getView().getTopInventory();
 
+        // 소문의 등불 GUI 처리
+        if (event.getView().getTitle().equals("§5소문의 등불")) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() == topInventory) {
+                int slot = event.getSlot();
+                if (slot == 1) {
+                    player.closeInventory();
+                    plugin.getRelicAbilityHandler().execute020Option1(player);
+                } else if (slot == 3) {
+                    player.closeInventory();
+                    plugin.getRelicAbilityHandler().execute020Option2(player);
+                } else if (slot == 5) {
+                    player.closeInventory();
+                    plugin.getRelicAbilityHandler().execute020Option3(player);
+                } else if (slot == 7) {
+                    player.closeInventory();
+                    plugin.getRelicAbilityHandler().execute020Option4(player);
+                }
+            }
+            return;
+        }
+
         // 금지된 인벤토리 타입인지 확인
         if (!BLOCKED_INVENTORY_TYPES.contains(topInventory.getType())) return;
 
