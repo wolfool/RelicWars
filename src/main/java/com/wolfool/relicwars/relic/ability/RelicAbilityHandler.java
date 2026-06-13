@@ -412,8 +412,11 @@ public class RelicAbilityHandler {
         // TODO: SealedRelicManager에서 활성 봉인 목록을 가져와 좌표 표시
 
         // 3. 특정 유물 소유자 정보 (DB 조회)
-        player.sendMessage("§e  [정보] 특정 유물 소유자를 알고 싶으면: /relic scan <번호>");
-        // TODO: /relic scan 서브커맨드 연동
+        Component scanMsg = Component.text("§e  [정보] 특정 유물 소유자를 알고 싶다면: ")
+                .append(Component.text("§a/relic scan <번호>")
+                        .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/relic scan "))
+                        .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text("클릭하여 채팅창에 명령어 입력"))));
+        player.sendMessage(scanMsg);
 
         // 4. 온라인 유저들의 유물 보유 개수 요약
         player.sendMessage("§e  [현황] 현재 유물 분포:");
