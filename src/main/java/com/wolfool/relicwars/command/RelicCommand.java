@@ -38,6 +38,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§e/relic revive <유저> - 다운된 유저 부활");
                 sender.sendMessage("§e/relic resetcd <유저> - 유물 쿨타임 초기화");
                 sender.sendMessage("§e/relic announce <메시지> - 전체 공지");
+                sender.sendMessage("§e/relic checkowner <유물번호> - 특정 유물 소유자 확인 (관리자용)");
             }
             sender.sendMessage("§e/relic transfer <팀원> - 유물 양도 (5초 대기 필요)");
             sender.sendMessage("§e/relic scan <유물번호> - 유물 소유자 확인 (#020 소유자 전용)");
@@ -142,6 +143,31 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("checkowner") && sender.hasPermission("relicwars.admin")) {
+            if (args.length < 2) {
+                sender.sendMessage("§c사용법: /relic checkowner <유물번호>");
+                return true;
+            }
+            try {
+                int targetNum = Integer.parseInt(args[1]);
+                RelicDefinition def = RelicDefinition.getByNumber(targetNum);
+                if (def == null) {
+                    sender.sendMessage("§c[RelicWars] 존재하지 않는 유물 번호입니다. (1~30)");
+                    return true;
+                }
+                String ownerUuid = plugin.getDatabaseManager().getRelicOwner(targetNum);
+                if (ownerUuid == null) {
+                    sender.sendMessage("§a[관리자 정보] " + def.getName() + " 유물은 아직 누구의 소유도 아닙니다.");
+                } else {
+                    org.bukkit.OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(UUID.fromString(ownerUuid));
+                    sender.sendMessage("§a[관리자 정보] " + def.getName() + " 유물의 소유자: " + offlineTarget.getName());
+                }
+            } catch (NumberFormatException e) {
+                sender.sendMessage("§c[RelicWars] 유물 번호는 숫자여야 합니다.");
+            }
+            return true;
+        }
+
         if (args[0].equalsIgnoreCase("transfer")) {
             if (!(sender instanceof Player player)) return true;
             if (args.length < 2) {
@@ -179,13 +205,17 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 }
             }
 
-            if (!hasLantern && !player.hasPermission("relicwars.admin")) {
+            if (!hasLantern) {
                 player.sendMessage("§c[RelicWars] '#020 소문의 등불' 유물 소유자만 사용할 수 있습니다.");
                 return true;
             }
 
-            if (!plugin.getRelicAbilityHandler().active020ScanMode.contains(player.getUniqueId()) && !player.hasPermission("relicwars.admin")) {
-                player.sendMessage("§c[RelicWars] #020 소문의 등불을 우클릭하여 GUI에서 '소유자 검색'을 먼저 선택해야 합니다.");
+            if (!plugin.getRelicAbilityHandler().active020ScanMode.contains(player.getUniqueId())) {
+                if (player.hasPermission("relicwars.admin")) {
+                    player.sendMessage("§c[관리자 안내] 어드민이라도 테스트를 위해서는 GUI에서 먼저 '소유자 검색'을 선택해야 합니다. 단순 소유자 조회를 원하시면 /relic checkowner <번호> 를 사용하세요.");
+                } else {
+                    player.sendMessage("§c[RelicWars] #020 소문의 등불을 우클릭하여 GUI에서 '소유자 검색'을 먼저 선택해야 합니다.");
+                }
                 return true;
             }
 
@@ -284,6 +314,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 completions.add("revive");
                 completions.add("resetcd");
                 completions.add("announce");
+                completions.add("checkowner");
             }
             completions.add("transfer");
             completions.add("scan");
