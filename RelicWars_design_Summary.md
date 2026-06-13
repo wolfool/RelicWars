@@ -180,6 +180,8 @@ downed:
   execute-seconds: 3 # 적군이 다운된 유저를 확킬(처형)하는 데 걸리는 시간
   drop-relic-on-downed: true # 다운 시 즉시 유물 1개를 바닥에 드랍할지 여부
   downed-drop-selection: "lowest_number" # 다운 시 드랍되는 유물 기준 (lowest_number = 가장 좋은 최상급 유물)
+  keep-inventory-on-death: true # 사망 시 일반 인벤토리(갑옷, 검 등) 보존 여부 (true = 보존됨, 유물만 룰에 따라 드랍)
+  friendly-fire-enabled: false # 팀원 간 타격 및 유물 데미지 허용 여부
   final-death-drop-percent: 0.30 # 최종 사망(확킬/자결/시간초과) 시 남아있는 유물의 드랍 비율 (30%)
   final-death-drop-selection: "highest_number" # 최종 사망 시 드랍되는 유물 기준 (highest_number = 성능이 낮은 하급 잉여 유물 위주)
   steal-requires-target-has-more-relics: true # 강탈 시 타겟이 유물을 가지고 있어야만 뺏을 수 있는지 여부
