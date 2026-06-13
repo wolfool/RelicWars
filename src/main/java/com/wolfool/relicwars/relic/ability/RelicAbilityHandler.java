@@ -446,7 +446,7 @@ public class RelicAbilityHandler {
         player.sendMessage("§d[소문의 등불] §f유물 소유자 검색 모드를 선택했습니다.");
         active020ScanMode.add(player.getUniqueId());
         
-        Component scanMsg = Component.text("§e  [정보] 30초 내에 검색할 유물 번호를 입력하세요: ")
+        Component scanMsg = Component.text("§e  [정보] 5분 내에 검색할 유물 번호를 입력하세요 (1회 한정): ")
                 .append(Component.text("§a/relic scan <번호>")
                         .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/relic scan "))
                         .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text("클릭하여 채팅창에 명령어 입력"))));
@@ -458,7 +458,7 @@ public class RelicAbilityHandler {
                     player.sendMessage("§c[소문의 등불] 검색 대기 시간이 만료되었습니다.");
                 }
             }
-        }, 600L); // 30초
+        }, 6000L); // 5분
     }
 
     public void execute020Option4(Player player) {
