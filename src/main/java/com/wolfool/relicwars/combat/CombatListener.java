@@ -119,13 +119,11 @@ public class CombatListener implements Listener {
         Player rescuer = event.getPlayer();
 
         if (combatManager.isDowned(target) && !combatManager.isDowned(rescuer)) {
-            if (!rescuer.isSneaking()) {
-                rescuer.sendMessage("§e[RelicWars] 팀원을 구조하려면 Shift(웅크리기)를 누른 채로 우클릭하세요.");
+            // 이미 구조 중인지 확인
+            if (reviveTasks.containsKey(rescuer.getUniqueId())) {
+                rescuer.sendMessage("§c[RelicWars] 이미 구조 중입니다!");
                 return;
             }
-
-            // 이미 구조 중인지 확인
-            if (reviveTasks.containsKey(rescuer.getUniqueId())) return;
 
             // TODO: TeamManager 검증 (Phase 3 에서는 누구나 구조 가능하게 임시 설정)
             
@@ -167,17 +165,18 @@ public class CombatListener implements Listener {
                     return;
                 }
 
-                // 웅크리기(Shift)를 해제했는지 확인
-                if (!rescuer.isSneaking()) {
-                    cancelRevive(rescuer.getUniqueId(), "웅크리기를 해제하여 구조가 취소되었습니다.");
-                    return;
-                }
-
+                // 웅크리기 해제 조건 제거 (이제 움직이지만 않으면 됨)
+                
                 ticks += 5; // 0.25초마다 체크
                 
-                if (ticks % 20 == 0) {
-                    rescuer.sendActionBar(Component.text("§a구조 중... " + (ticks / 20) + " / " + finalReviveSeconds + "초"));
+                // 게이지 바 생성
+                int bars = (int) ((double) ticks / totalTicks * 10);
+                StringBuilder gauge = new StringBuilder("§a");
+                for (int i = 0; i < 10; i++) {
+                    if (i == bars) gauge.append("§7");
+                    gauge.append("■");
                 }
+                rescuer.sendActionBar(Component.text("§e구조 중... [" + gauge.toString() + "§e] " + String.format("%.1f", ticks / 20.0) + "초 / " + finalReviveSeconds + ".0초"));
 
                 if (ticks >= totalTicks) {
                     // 구조 완료
