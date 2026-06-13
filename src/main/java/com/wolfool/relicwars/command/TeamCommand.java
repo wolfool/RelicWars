@@ -1,6 +1,9 @@
 package com.wolfool.relicwars.command;
 
 import com.wolfool.relicwars.RelicWars;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -16,6 +19,9 @@ public class TeamCommand implements CommandExecutor {
     private final RelicWars plugin;
     // 초대한 사람 -> 초대받은 사람
     private final Map<UUID, UUID> pendingInvites = new HashMap<>();
+    
+    // TPA 대상자 -> TPA 요청자
+    private final Map<UUID, UUID> pendingTpas = new HashMap<>();
 
     public TeamCommand(RelicWars plugin) {
         this.plugin = plugin;
@@ -31,6 +37,7 @@ public class TeamCommand implements CommandExecutor {
         if (args.length == 0) {
             player.sendMessage("§e[RelicWars] /team invite <유저명> - 팀 초대");
             player.sendMessage("§e[RelicWars] /team accept - 팀 초대 수락");
+            player.sendMessage("§e[RelicWars] /team tpa - 팀원에게 텔레포트 요청");
             return true;
         }
 
@@ -101,6 +108,63 @@ public class TeamCommand implements CommandExecutor {
             plugin.getTeamManager().createTeam(inviter, player);
             inviter.sendMessage("§a[RelicWars] " + player.getName() + "님과 팀이 되었습니다! (2시간 동안 해체 불가)");
             player.sendMessage("§a[RelicWars] " + inviter.getName() + "님과 팀이 되었습니다! (2시간 동안 해체 불가)");
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("tpa")) {
+            if (!plugin.getTeamManager().hasTeam(player)) {
+                player.sendMessage("§c[RelicWars] 팀에 소속되어 있지 않습니다.");
+                return true;
+            }
+
+            String teamId = plugin.getTeamManager().getTeamId(player);
+            Player teammate = null;
+            for (UUID memberId : plugin.getTeamManager().getTeamMembers(teamId)) {
+                if (!memberId.equals(player.getUniqueId())) {
+                    teammate = Bukkit.getPlayer(memberId);
+                    break;
+                }
+            }
+
+            if (teammate == null || !teammate.isOnline()) {
+                player.sendMessage("§c[RelicWars] 팀원이 오프라인이거나 찾을 수 없습니다.");
+                return true;
+            }
+
+            pendingTpas.put(teammate.getUniqueId(), player.getUniqueId());
+            player.sendMessage("§a[RelicWars] " + teammate.getName() + "님에게 텔레포트 요청을 보냈습니다.");
+
+            Component acceptButton = Component.text(" [여기를 클릭하여 수락] ")
+                    .color(NamedTextColor.YELLOW)
+                    .clickEvent(ClickEvent.runCommand("/team tpaccept"));
+
+            teammate.sendMessage(Component.text("§a[RelicWars] " + player.getName() + "님이 텔레포트를 요청했습니다.").append(acceptButton));
+
+            final UUID targetId = teammate.getUniqueId();
+            final UUID reqId = player.getUniqueId();
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                pendingTpas.remove(targetId, reqId);
+            }, 600L); // 30초 만료
+            
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("tpaccept")) {
+            UUID requesterId = pendingTpas.remove(player.getUniqueId());
+            if (requesterId == null) {
+                player.sendMessage("§c[RelicWars] 대기 중인 텔레포트 요청이 없습니다.");
+                return true;
+            }
+
+            Player requester = Bukkit.getPlayer(requesterId);
+            if (requester == null || !requester.isOnline()) {
+                player.sendMessage("§c[RelicWars] 요청한 플레이어가 오프라인입니다.");
+                return true;
+            }
+
+            requester.teleport(player.getLocation());
+            requester.sendMessage("§a[RelicWars] " + player.getName() + "님이 텔레포트 요청을 수락했습니다.");
+            player.sendMessage("§a[RelicWars] " + requester.getName() + "님의 텔레포트 요청을 수락했습니다.");
             return true;
         }
 

@@ -34,6 +34,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("relicwars.admin")) {
                 sender.sendMessage("§e/relic give <유저> <1~30> - 유물 지급");
                 sender.sendMessage("§e/relic take <유저> - 유물 압수");
+                sender.sendMessage("§e/relic revive <유저> - 다운된 유저 부활");
             }
             sender.sendMessage("§e/relic transfer <팀원> - 유물 양도 (5초 대기 필요)");
             return true;
@@ -85,6 +86,25 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             }
             target.getInventory().setContents(contents);
             sender.sendMessage("§a[RelicWars] " + target.getName() + "님에게서 " + taken + "개의 유물을 압수했습니다.");
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("revive") && sender.hasPermission("relicwars.admin")) {
+            if (args.length < 2) return false;
+            Player target = Bukkit.getPlayer(args[1]);
+            if (target == null) {
+                sender.sendMessage("§c대상을 찾을 수 없습니다.");
+                return true;
+            }
+
+            if (!plugin.getCombatManager().isDowned(target)) {
+                sender.sendMessage("§c" + target.getName() + "님은 다운된 상태가 아닙니다.");
+                return true;
+            }
+
+            plugin.getCombatManager().revivePlayer(target);
+            sender.sendMessage("§a[RelicWars] " + target.getName() + "님을 강제로 부활시켰습니다.");
+            target.sendMessage("§a[RelicWars] 관리자의 권능으로 부활했습니다!");
             return true;
         }
 
@@ -172,6 +192,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission("relicwars.admin")) {
                 completions.add("give");
                 completions.add("take");
+                completions.add("revive");
             }
             completions.add("transfer");
         } else if (args.length == 2) {
