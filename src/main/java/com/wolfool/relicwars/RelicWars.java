@@ -3,6 +3,8 @@ package com.wolfool.relicwars;
 import com.wolfool.relicwars.manager.ConfigManager;
 import com.wolfool.relicwars.manager.DatabaseManager;
 import com.wolfool.relicwars.relic.RelicManager;
+import com.wolfool.relicwars.combat.CombatManager;
+import com.wolfool.relicwars.relic.SealedRelicManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.logging.Level;
@@ -19,6 +21,8 @@ public final class RelicWars extends JavaPlugin {
     private ConfigManager configManager;
     private DatabaseManager databaseManager;
     private RelicManager relicManager;
+    private CombatManager combatManager;
+    private SealedRelicManager sealedRelicManager;
 
     /**
      * 플러그인 인스턴스를 반환합니다. (싱글톤)
@@ -48,9 +52,14 @@ public final class RelicWars extends JavaPlugin {
         // --- 3. 매니저 등록 ---
         relicManager = new RelicManager(this);
         relicManager.initialize();
+        
+        sealedRelicManager = new SealedRelicManager(this);
+        sealedRelicManager.initialize();
+        
+        combatManager = new CombatManager(this);
+        combatManager.initialize();
 
-        // TODO: CombatManager 등록 (Phase 3)
-        // TODO: TeamManager 등록 (Phase 3)
+        // TODO: TeamManager 등록 (Phase 3 후반)
         // TODO: BossManager 등록 (Phase 5)
         // TODO: EventManager 등록 (Phase 4)
 
@@ -66,6 +75,8 @@ public final class RelicWars extends JavaPlugin {
     @Override
     public void onDisable() {
         // --- 매니저 종료 ---
+        if (combatManager != null) combatManager.shutdown();
+        if (sealedRelicManager != null) sealedRelicManager.shutdown();
         if (relicManager != null) relicManager.shutdown();
 
         // --- 데이터베이스 연결 종료 ---
@@ -87,5 +98,13 @@ public final class RelicWars extends JavaPlugin {
 
     public RelicManager getRelicManager() {
         return relicManager;
+    }
+
+    public CombatManager getCombatManager() {
+        return combatManager;
+    }
+
+    public SealedRelicManager getSealedRelicManager() {
+        return sealedRelicManager;
     }
 }
