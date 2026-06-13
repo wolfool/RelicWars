@@ -36,6 +36,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§e/relic take <유저> - 유물 압수");
                 sender.sendMessage("§e/relic revive <유저> - 다운된 유저 부활");
                 sender.sendMessage("§e/relic resetcd <유저> - 유물 쿨타임 초기화");
+                sender.sendMessage("§e/relic announce <메시지> - 전체 공지");
             }
             sender.sendMessage("§e/relic transfer <팀원> - 유물 양도 (5초 대기 필요)");
             sender.sendMessage("§e/relic scan <유물번호> - 유물 소유자 확인 (#020 소유자 전용)");
@@ -127,6 +128,16 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 }
             }
             sender.sendMessage("§a[RelicWars] " + target.getName() + "님의 유물 " + resetCount + "개의 쿨타임을 초기화했습니다.");
+            return true;
+        }
+
+        if ((args[0].equalsIgnoreCase("announce") || args[0].equalsIgnoreCase("broadcast")) && sender.hasPermission("relicwars.admin")) {
+            if (args.length < 2) {
+                sender.sendMessage("§c사용법: /relic announce <메시지>");
+                return true;
+            }
+            String msg = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+            Bukkit.broadcast(Component.text("§b[소문] §f" + msg));
             return true;
         }
 
@@ -271,6 +282,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 completions.add("take");
                 completions.add("revive");
                 completions.add("resetcd");
+                completions.add("announce");
             }
             completions.add("transfer");
             completions.add("scan");

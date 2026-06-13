@@ -435,7 +435,9 @@ public class RelicAbilityHandler {
         } else {
             for (org.bukkit.entity.ItemDisplay display : sealed) {
                 Location loc = display.getLocation();
-                player.sendMessage("§e  [봉인] 위치: X:" + loc.getBlockX() + " Y:" + loc.getBlockY() + " Z:" + loc.getBlockZ());
+                int rx = (int) (Math.round(loc.getBlockX() / 100.0) * 100);
+                int rz = (int) (Math.round(loc.getBlockZ() / 100.0) * 100);
+                player.sendMessage("§e  [봉인] 대략적인 위치: X: " + rx + " 부근, Z: " + rz + " 부근");
             }
         }
     }
