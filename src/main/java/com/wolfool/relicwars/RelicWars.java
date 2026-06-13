@@ -2,6 +2,7 @@ package com.wolfool.relicwars;
 
 import com.wolfool.relicwars.manager.ConfigManager;
 import com.wolfool.relicwars.manager.DatabaseManager;
+import com.wolfool.relicwars.relic.RelicManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.logging.Level;
@@ -17,6 +18,7 @@ public final class RelicWars extends JavaPlugin {
 
     private ConfigManager configManager;
     private DatabaseManager databaseManager;
+    private RelicManager relicManager;
 
     /**
      * 플러그인 인스턴스를 반환합니다. (싱글톤)
@@ -43,12 +45,14 @@ public final class RelicWars extends JavaPlugin {
         }
         getLogger().info("§a[RelicWars] SQLite 데이터베이스 연결 완료.");
 
-        // --- 3. 매니저 등록 (Phase 2 이후 추가 예정) ---
-        // TODO: RelicManager 등록
-        // TODO: CombatManager 등록
-        // TODO: TeamManager 등록
-        // TODO: BossManager 등록
-        // TODO: EventManager 등록
+        // --- 3. 매니저 등록 ---
+        relicManager = new RelicManager(this);
+        relicManager.initialize();
+
+        // TODO: CombatManager 등록 (Phase 3)
+        // TODO: TeamManager 등록 (Phase 3)
+        // TODO: BossManager 등록 (Phase 5)
+        // TODO: EventManager 등록 (Phase 4)
 
         // --- 4. 명령어 등록 (Phase 7에서 구현) ---
         // TODO: /relic 명령어 등록
@@ -61,6 +65,9 @@ public final class RelicWars extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // --- 매니저 종료 ---
+        if (relicManager != null) relicManager.shutdown();
+
         // --- 데이터베이스 연결 종료 ---
         if (databaseManager != null) {
             databaseManager.shutdown();
@@ -76,5 +83,9 @@ public final class RelicWars extends JavaPlugin {
 
     public DatabaseManager getDatabaseManager() {
         return databaseManager;
+    }
+
+    public RelicManager getRelicManager() {
+        return relicManager;
     }
 }
