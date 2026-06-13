@@ -1,4 +1,4 @@
-﻿# RelicWars 게임 기획 및 설계안
+# RelicWars 게임 기획 및 설계안
 
 **작성일:** 2026-06-13 (최종 수정 반영)
 **분위기:** 반협동 반경쟁 SMP (서바이벌 멀티플레이)
@@ -165,6 +165,7 @@ sealing:
   boss-seal-seconds: 60 # 보스를 잡고 유물이 드랍되었을 때 획득 불가(봉인) 시간
   death-seal-seconds: 30 # 플레이어 최종 사망 시 드랍되는 유물의 봉인 시간
   steal-seal-seconds: 45 # 유물 강탈 성공 시 떨어지는 유물의 봉인 시간
+  downed-drop-seal-seconds: 30 # 다운 시 즉시 떨어지는 최상급 유물의 봉인 시간
 
 teams:
   enabled: true # 팀 시스템 활성화 여부
