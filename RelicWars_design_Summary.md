@@ -218,7 +218,7 @@ events:
       - hours: 3
         hint-type: "100-blur"  # X: 100 단위 흐림
       - hours: 4
-        hint-type: "50-blur"   # X: 50 단위 흐림
+        hint-type: "50-y-blur" # X, Z 50단위 흐림 + 정확한 Y좌표 포함 (파묻기 카운터)
 
 ending:
   required-all-spawned: true # 30개 유물이 모두 1번 이상 등장해야 하는지 여부
