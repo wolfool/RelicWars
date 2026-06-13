@@ -47,6 +47,8 @@ public class SealedRelicManager implements Manager, Listener {
         plugin.getLogger().info("§a[RelicWars] SealedRelicManager 초기화 완료.");
     }
 
+    @Override
+    public void shutdown() {
         for (BukkitTask task : unsealTasks.values()) {
             task.cancel();
         }
