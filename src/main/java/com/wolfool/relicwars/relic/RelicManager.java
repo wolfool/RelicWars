@@ -151,7 +151,7 @@ public class RelicManager implements Manager {
         if (dropCount <= 0) return Collections.emptyList();
 
         // 가장 높은 번호(약한) 유물부터 강탈당하도록 내림차순 정렬
-        relics.sort((i1, i2) -> Integer.compare(RelicItemUtil.getRelicNumber(i2), RelicItemUtil.getRelicNumber(i1)));
+        java.util.Collections.shuffle(relics);
 
         List<ItemStack> dropped = new ArrayList<>();
         for (int i = 0; i < dropCount && i < relics.size(); i++) {

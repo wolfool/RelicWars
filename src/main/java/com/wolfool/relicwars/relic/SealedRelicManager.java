@@ -352,6 +352,13 @@ public class SealedRelicManager implements Manager, Listener {
                         player.sendMessage("§c[RelicWars] 유물 소지 한도를 초과했습니다.");
                         return;
                     }
+                    if (plugin.getTeamManager().hasTeam(player)) {
+                        String teamId = plugin.getTeamManager().getTeamId(player);
+                        if (plugin.getTeamManager().getTeamRelicCount(teamId) >= plugin.getConfigManager().getMaxRelicsPerTeam()) {
+                            player.sendMessage("§c[RelicWars] 팀 유물 소지 한도를 초과했습니다.");
+                            return;
+                        }
+                    }
 
                     player.getInventory().addItem(pickedUpRelic);
                     RelicDefinition def = RelicDefinition.getByNumber(relicNum);

@@ -206,4 +206,5 @@ public class ConfigManager {
     public int getEndingRequiredTeamRelics() { return endingRequiredTeamRelics; }
     public int getAltarDefenseMinutes() { return altarDefenseMinutes; }
     public int getMaxRelicStealsPerDowned() { return plugin.getConfig().getInt("combat.max-relic-steals", 3); }
+    public int getMaxRelicsPerTeam() { return plugin.getConfig().getInt("team.max-relics", 3); }
 }
