@@ -40,6 +40,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§e/relic announce <메시지> - 전체 공지");
                 sender.sendMessage("§e/relic checkowner <유물번호> - 특정 유물 소유자 확인 (관리자용)");
                 sender.sendMessage("§e/relic spawnsealed <유물번호> - 테스트용: 유물을 봉인된 상태로 바닥에 소환");
+                sender.sendMessage("§e/relic resetstate <유물번호> - 유물을 강제로 DB에서 초기화 (미스폰 상태)");
             }
             sender.sendMessage("§e/relic transfer <팀원> - 유물 양도 (5초 대기 필요)");
             return true;
@@ -203,6 +204,27 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("resetstate") && sender.hasPermission("relicwars.admin")) {
+            if (args.length < 2) {
+                sender.sendMessage("§c사용법: /relic resetstate <유물번호>");
+                return true;
+            }
+            try {
+                int number = Integer.parseInt(args[1]);
+                RelicDefinition def = RelicDefinition.getByNumber(number);
+                if (def == null) {
+                    sender.sendMessage("§c존재하지 않는 유물 번호입니다.");
+                    return true;
+                }
+                
+                plugin.getDatabaseManager().updateRelicState(number, "unspawned", null, null);
+                sender.sendMessage("§a[RelicWars] " + number + "번 유물의 DB 상태를 초기화(unspawned)했습니다. 이제 다시 스폰/기믹 달성이 가능합니다.");
+            } catch (NumberFormatException e) {
+                sender.sendMessage("§c숫자를 입력하세요.");
+            }
+            return true;
+        }
+
         if (args[0].equalsIgnoreCase("transfer")) {
             if (!(sender instanceof Player player)) return true;
             if (args.length < 2) {
@@ -292,6 +314,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 completions.add("announce");
                 completions.add("checkowner");
                 completions.add("spawnsealed");
+                completions.add("resetstate");
             }
             completions.add("transfer");
         } else if (args.length == 2) {
