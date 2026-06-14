@@ -87,9 +87,9 @@ public class ConfigManager {
         reviveSeconds = config.getInt("combat.revive-seconds", 8);
         dropRelicOnDowned = config.getBoolean("combat.drop-relic-on-downed", true);
         downedDropSelection = config.getString("combat.downed-drop-selection", "lowest_number");
-        // 드랍 룰 파싱: "드랍개수: 최소소유-최대소유"
+        // 강탈(Steal) 드랍 룰 파싱: "드랍개수: 최소소유-최대소유"
         downedDropRules.clear();
-        org.bukkit.configuration.ConfigurationSection dropRulesSection = config.getConfigurationSection("combat.downed-drop-rules");
+        org.bukkit.configuration.ConfigurationSection dropRulesSection = config.getConfigurationSection("combat.steal-drop-rules");
         if (dropRulesSection != null) {
             for (String key : dropRulesSection.getKeys(false)) {
                 try {
@@ -106,7 +106,8 @@ public class ConfigManager {
             // 기본값
             downedDropRules.put(0, new int[]{0, 1});
             downedDropRules.put(1, new int[]{2, 3});
-            downedDropRules.put(2, new int[]{4, 99});
+            downedDropRules.put(2, new int[]{4, 4});
+            downedDropRules.put(3, new int[]{5, 99});
         }
         finalDeathDropSelection = config.getString("combat.final-death-drop-selection", "highest_number");
         keepInventoryOnDeath = config.getBoolean("combat.keep-inventory-on-death", true);

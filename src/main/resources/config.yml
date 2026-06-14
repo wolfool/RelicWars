@@ -26,11 +26,12 @@ combat:
   drop-relic-on-downed: true     # 다운 시 즉시 유물 드랍 여부
   downed-drop-selection: "highest_number"   # 다운 시 드랍 기준 (높은 번호 = 약한 유물부터)
 
-  # 다운 시 드랍 개수별 소유 범위 (드랍 개수: "최소소유~최대소유")
-  downed-drop-rules:
+  # 강탈(Steal) 드랍 규칙: 드랍 개수별 소유 범위 (드랍 개수: "최소소유~최대소유")
+  steal-drop-rules:
     0: "0-1"     # 드랍 0개: 유물 0~1개 소유 시
     1: "2-3"     # 드랍 1개: 유물 2~3개 소유 시
-    2: "4-99"    # 드랍 2개: 유물 4개 이상 소유 시
+    2: "4-4"     # 드랍 2개: 유물 4개 소유 시
+    3: "5-99"    # 드랍 3개: 유물 5개 이상 소유 시
 
   final-death-drop-selection: "highest_number"  # 확킬 시 드랍 기준
 
