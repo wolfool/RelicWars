@@ -554,7 +554,7 @@ public class RelicAbilityHandler {
 
     // #015 회수자의 갈고리 — 20블록 밖 봉인 유물을 끌어오기
     private void execute015(Player player) {
-        org.bukkit.entity.ItemDisplay nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 20);
+        org.bukkit.entity.Item nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 20);
         if (nearest == null) {
             player.sendMessage("§c[RelicWars] 20블록 이내에 봉인된 유물이 없습니다!");
             return;
@@ -563,7 +563,7 @@ public class RelicAbilityHandler {
         player.sendMessage("§6[회수자의 갈고리] 봉인 유물을 끌어옵니다!");
 
         // 3초에 걸쳐 유물을 플레이어 위치로 이동
-        final org.bukkit.entity.ItemDisplay target = nearest;
+        final org.bukkit.entity.Item target = nearest;
         new BukkitRunnable() {
             int ticks = 0;
             @Override
@@ -710,7 +710,7 @@ public class RelicAbilityHandler {
 
     // #009 파괴자의 서 — 봉인 즉시 파괴
     private void execute009(Player player) {
-        org.bukkit.entity.ItemDisplay nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 50);
+        org.bukkit.entity.Item nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 50);
         if (nearest == null) {
             player.sendMessage("§c[RelicWars] 50블록 이내에 봉인된 유물이 없습니다!");
             return;
