@@ -40,6 +40,7 @@ com\wolfool\relicwars\relic\ability\RelicAbilityHandler$7.class
 com\wolfool\relicwars\ending\EndingManager$1.class
 com\wolfool\relicwars\relic\ability\RelicAbilityHandler$2.class
 com\wolfool\relicwars\relic\RelicItemUtil.class
+com\wolfool\relicwars\combat\CombatManager$1.class
 com\wolfool\relicwars\event\EventManager.class
 com\wolfool\relicwars\manager\ConfigManager.class
 com\wolfool\relicwars\manager\DatabaseManager.class

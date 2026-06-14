@@ -91,19 +91,45 @@ public class CombatManager implements Manager {
             }
         }
 
-        // --- 자동 확킬 타이머 ---
+        // --- 자동 확킬 카운트다운 타이머 ---
         int autoExecuteSeconds = plugin.getConfigManager().getDownedAutoExecuteSeconds();
         if (autoExecuteSeconds > 0) {
-            org.bukkit.scheduler.BukkitTask autoTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                autoExecuteTasks.remove(player.getUniqueId());
-                if (isDowned(player) && player.isOnline()) {
-                    player.sendMessage("§c[RelicWars] 구조받지 못해 사망했습니다...");
-                    Bukkit.broadcast(Component.text("§c[RelicWars] §f" + player.getName() + "§c님이 구조받지 못해 사망했습니다."));
-                    // === 자동 확킬 이펙트 ===
-                    com.wolfool.relicwars.relic.InteractionEffects.playAutoExecuteEffect(player);
-                    executePlayer(player, null);
+            org.bukkit.scheduler.BukkitTask autoTask = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
+                int timeLeft = autoExecuteSeconds;
+                @Override
+                public void run() {
+                    if (!isDowned(player) || !player.isOnline()) {
+                        // 구조되었거나 로그아웃 → 타이머 취소
+                        org.bukkit.scheduler.BukkitTask task = autoExecuteTasks.remove(player.getUniqueId());
+                        if (task != null) task.cancel();
+                        return;
+                    }
+
+                    if (timeLeft <= 0) {
+                        // 시간 초과 → 확킬
+                        org.bukkit.scheduler.BukkitTask task = autoExecuteTasks.remove(player.getUniqueId());
+                        if (task != null) task.cancel();
+                        player.sendMessage("§c[RelicWars] 구조받지 못해 사망했습니다...");
+                        Bukkit.broadcast(Component.text("§c[RelicWars] §f" + player.getName() + "§c님이 구조받지 못해 사망했습니다."));
+                        com.wolfool.relicwars.relic.InteractionEffects.playAutoExecuteEffect(player);
+                        executePlayer(player, null);
+                        return;
+                    }
+
+                    // 카운트다운 액션바 표시
+                    String color = timeLeft <= 10 ? "§c" : timeLeft <= 30 ? "§e" : "§a";
+                    String heartbeat = timeLeft <= 10 ? " §4§l❤" : "";
+                    player.sendActionBar(Component.text(color + "§l확킬까지 " + timeLeft + "초" + heartbeat));
+
+                    // 10초 이하일 때 심장박동 사운드
+                    if (timeLeft <= 10) {
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_WARDEN_HEARTBEAT, 
+                                org.bukkit.SoundCategory.PLAYERS, 0.8f, 1.0f + (10 - timeLeft) * 0.05f);
+                    }
+
+                    timeLeft--;
                 }
-            }, autoExecuteSeconds * 20L);
+            }, 0L, 20L); // 매 1초(20틱)마다
             autoExecuteTasks.put(player.getUniqueId(), autoTask);
         }
     }
