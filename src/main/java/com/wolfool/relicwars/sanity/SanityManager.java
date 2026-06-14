@@ -41,6 +41,7 @@ public class SanityManager implements Manager {
         loadAllFromDB();
         startRegenTask();
         startDebuffTask();
+        org.bukkit.Bukkit.getPluginManager().registerEvents(new SanityListener(plugin), plugin);
         plugin.getLogger().info("§a[RelicWars] SanityManager 초기화 완료.");
     }
 
