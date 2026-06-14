@@ -53,6 +53,8 @@ public class ConfigManager {
     private boolean bloodMoonBroadcastDimension;
     private int bloodMoonCoordinateBlur;
     private boolean forgottenRelicsEnabled;
+    private boolean disableEndCities;
+    private boolean disableElytra;
 
     // --- 엔딩(Ending) ---
     private boolean endingRequiredAllSpawned;
@@ -132,6 +134,8 @@ public class ConfigManager {
         bloodMoonBroadcastDimension = config.getBoolean("event.blood-moon.broadcast-dimension", true);
         bloodMoonCoordinateBlur = config.getInt("event.blood-moon.coordinate-blur", 100);
         forgottenRelicsEnabled = config.getBoolean("event.forgotten-relics.enabled", true);
+        disableEndCities = config.getBoolean("events.disable-end-cities", true);
+        disableElytra = config.getBoolean("events.disable-elytra", true);
 
         // --- 엔딩 ---
         endingRequiredAllSpawned = config.getBoolean("ending.required-all-spawned", true);
@@ -194,6 +198,8 @@ public class ConfigManager {
     public boolean isBloodMoonBroadcastDimension() { return bloodMoonBroadcastDimension; }
     public int getBloodMoonCoordinateBlur() { return bloodMoonCoordinateBlur; }
     public boolean isForgottenRelicsEnabled() { return forgottenRelicsEnabled; }
+    public boolean isDisableEndCities() { return disableEndCities; }
+    public boolean isDisableElytra() { return disableElytra; }
 
     // --- 엔딩 ---
     public boolean isEndingRequiredAllSpawned() { return endingRequiredAllSpawned; }

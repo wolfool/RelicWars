@@ -29,6 +29,9 @@ public class EventManager implements Manager {
             forgottenRelicTask.runTaskTimerAsynchronously(plugin, 60L, 1200L); // 비동기로 1분 간격 체크
         }
 
+        // 겉날개/엔드시티 차단 리스너
+        Bukkit.getPluginManager().registerEvents(new EnvironmentListener(plugin), plugin);
+
         plugin.getLogger().info("§a[RelicWars] EventManager 초기화 완료.");
     }
 

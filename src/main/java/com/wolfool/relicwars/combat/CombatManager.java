@@ -36,6 +36,9 @@ public class CombatManager implements Manager {
     // UUID -> 자동 확킬 타이머 태스크
     private final Map<UUID, org.bukkit.scheduler.BukkitTask> autoExecuteTasks = new HashMap<>();
 
+    // UUID -> 전투 태그 만료 시각 (밀리초)
+    private final Map<UUID, Long> combatTags = new HashMap<>();
+
     public CombatManager(RelicWars plugin) {
         this.plugin = plugin;
     }
@@ -54,6 +57,7 @@ public class CombatManager implements Manager {
             task.cancel();
         }
         autoExecuteTasks.clear();
+        combatTags.clear();
         plugin.getLogger().info("§a[RelicWars] CombatManager 종료.");
     }
 
@@ -270,5 +274,39 @@ public class CombatManager implements Manager {
         player.removePotionEffect(PotionEffectType.SLOWNESS);
         player.removePotionEffect(PotionEffectType.JUMP_BOOST);
         player.removePotionEffect(PotionEffectType.BLINDNESS);
+    }
+
+    // ======================== 전투 태그 (Combat Tag) ========================
+
+    public void setCombatTag(Player player) {
+        if (isDowned(player)) return; // 다운 중에는 갱신 안 함
+        
+        long expireTime = System.currentTimeMillis() + (plugin.getConfigManager().getCombatTagSeconds() * 1000L);
+        combatTags.put(player.getUniqueId(), expireTime);
+    }
+
+    public boolean isInCombat(Player player) {
+        Long expireTime = combatTags.get(player.getUniqueId());
+        return expireTime != null && expireTime > System.currentTimeMillis();
+    }
+
+    public void handleCombatLog(Player player) {
+        if (isInCombat(player) && !isDowned(player)) {
+            // 랜뽑 시 즉시 일반 다운 패널티(1개 드랍) + 최종 사망 패널티(강탈 드랍) 적용
+            Bukkit.broadcast(Component.text("§c[RelicWars] §f" + player.getName() + "§c님이 전투 중 강제 종료(랜뽑)하여 처형되었습니다!"));
+            
+            // 1. 일반 다운 패널티 로직 (최상급 1개)
+            if (plugin.getConfigManager().isDropRelicOnDowned()) {
+                ItemStack bestRelic = plugin.getRelicManager().extractBestRelic(player);
+                if (bestRelic != null) {
+                    plugin.getSealedRelicManager().spawnSealedRelic(player.getLocation(), bestRelic, plugin.getConfigManager().getDownedDropSealSeconds());
+                }
+            }
+            
+            // 2. 최종 사망 패널티 (나머지 강탈 규칙에 따라 추가 드랍)
+            killPlayer(player, null);
+            
+            combatTags.remove(player.getUniqueId());
+        }
     }
 }

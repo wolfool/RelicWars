@@ -58,6 +58,27 @@ public class CombatListener implements Listener {
         }
     }
 
+    /**
+     * 유저 간 타격 발생 시 전투 태그(Combat Tag) 부여
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCombatTag(EntityDamageByEntityEvent event) {
+        Player victim = null;
+        if (event.getEntity() instanceof Player p) victim = p;
+        
+        Player attacker = null;
+        if (event.getDamager() instanceof Player p) attacker = p;
+        else if (event.getDamager() instanceof org.bukkit.entity.Projectile proj && proj.getShooter() instanceof Player p) attacker = p;
+
+        if (victim != null && attacker != null && !victim.equals(attacker)) {
+            // 같은 팀이 아니면 서로에게 전투 태그 부여
+            if (!plugin.getTeamManager().isSameTeam(victim, attacker)) {
+                combatManager.setCombatTag(victim);
+                combatManager.setCombatTag(attacker);
+            }
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
@@ -416,6 +437,9 @@ public class CombatListener implements Listener {
         if (combatManager.isDowned(player)) {
             // 다운 상태에서 나가면 즉시 사망 처리
             combatManager.killPlayer(player, null);
+        } else {
+            // 랜뽑 (전투 태그 중 강제 종료) 처리
+            combatManager.handleCombatLog(player);
         }
     }
 
