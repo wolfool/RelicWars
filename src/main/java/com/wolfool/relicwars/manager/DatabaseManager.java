@@ -161,6 +161,24 @@ public class DatabaseManager {
     }
 
     /**
+     * 유물의 현재 상태(state)를 조회합니다.
+     */
+    public String getRelicState(int relicNumber) {
+        String query = "SELECT state FROM relic_ownership WHERE relic_number = ?";
+        try (java.sql.PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, relicNumber);
+            try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("state");
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.WARNING, "유물 상태 조회 실패: #" + relicNumber, e);
+        }
+        return "unspawned";
+    }
+
+    /**
      * 데이터베이스 연결을 반환합니다.
      */
     public Connection getConnection() {

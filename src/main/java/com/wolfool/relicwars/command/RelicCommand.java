@@ -39,6 +39,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§e/relic resetcd <유저> - 유물 쿨타임 초기화");
                 sender.sendMessage("§e/relic announce <메시지> - 전체 공지");
                 sender.sendMessage("§e/relic checkowner <유물번호> - 특정 유물 소유자 확인 (관리자용)");
+                sender.sendMessage("§e/relic spawnsealed <유물번호> - 테스트용: 유물을 봉인된 상태로 바닥에 소환");
             }
             sender.sendMessage("§e/relic transfer <팀원> - 유물 양도 (5초 대기 필요)");
             return true;
@@ -57,6 +58,12 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 RelicDefinition def = RelicDefinition.getByNumber(number);
                 if (def == null) {
                     sender.sendMessage("§c존재하지 않는 유물 번호입니다. (1~30)");
+                    return true;
+                }
+
+                String currentState = plugin.getDatabaseManager().getRelicState(number);
+                if (!currentState.equals("unspawned")) {
+                    sender.sendMessage("§c[RelicWars] 해당 번호의 유물은 이미 세상에 존재합니다! (상태: " + currentState + ")");
                     return true;
                 }
 
@@ -167,6 +174,35 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("spawnsealed") && sender.hasPermission("relicwars.admin")) {
+            if (!(sender instanceof Player player)) return true;
+            if (args.length < 2) {
+                sender.sendMessage("§c사용법: /relic spawnsealed <유물번호>");
+                return true;
+            }
+            try {
+                int number = Integer.parseInt(args[1]);
+                RelicDefinition def = RelicDefinition.getByNumber(number);
+                if (def == null) {
+                    sender.sendMessage("§c존재하지 않는 유물 번호입니다.");
+                    return true;
+                }
+                
+                String currentState = plugin.getDatabaseManager().getRelicState(number);
+                if (!currentState.equals("unspawned")) {
+                    sender.sendMessage("§c[RelicWars] 해당 번호의 유물은 이미 세상에 존재합니다! (상태: " + currentState + ")");
+                    return true;
+                }
+
+                ItemStack relic = RelicItemUtil.createRelicItem(def);
+                plugin.getSealedRelicManager().spawnSealedRelic(player.getLocation(), relic, 5); // 5초 테스트 봉인
+                sender.sendMessage("§a[RelicWars] " + def.getName() + " 유물을 바닥에 봉인된 상태로 소환했습니다.");
+            } catch (NumberFormatException e) {
+                sender.sendMessage("§c숫자를 입력하세요.");
+            }
+            return true;
+        }
+
         if (args[0].equalsIgnoreCase("transfer")) {
             if (!(sender instanceof Player player)) return true;
             if (args.length < 2) {
@@ -255,6 +291,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 completions.add("resetcd");
                 completions.add("announce");
                 completions.add("checkowner");
+                completions.add("spawnsealed");
             }
             completions.add("transfer");
         } else if (args.length == 2) {
