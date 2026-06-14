@@ -29,20 +29,32 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
         this.plugin = plugin;
     }
 
+    private void sendHelpMessage(CommandSender sender, String command, String description) {
+        if (sender instanceof Player player) {
+            player.sendMessage(Component.text("§e" + command + " - " + description)
+                    .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand(command.split(" ")[0] + " " + command.split(" ")[1] + " "))
+                    .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(Component.text("§a클릭하여 명령어 입력"))));
+        } else {
+            sender.sendMessage("§e" + command + " - " + description);
+        }
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
+            sender.sendMessage("§6§l========== [ RelicWars 명령어 ] ==========");
             if (sender.hasPermission("relicwars.admin")) {
-                sender.sendMessage("§e/relic give <유저> <1~30> - 유물 지급");
-                sender.sendMessage("§e/relic take <유저> - 유물 압수");
-                sender.sendMessage("§e/relic revive <유저> - 다운된 유저 부활");
-                sender.sendMessage("§e/relic resetcd <유저> - 유물 쿨타임 초기화");
-                sender.sendMessage("§e/relic announce <메시지> - 전체 공지");
-                sender.sendMessage("§e/relic checkowner <유물번호> - 특정 유물 소유자 확인 (관리자용)");
-                sender.sendMessage("§e/relic spawnsealed <유물번호> - 테스트용: 유물을 봉인된 상태로 바닥에 소환");
-                sender.sendMessage("§e/relic resetstate <유물번호|all> - 유물을 강제로 DB에서 초기화 (미스폰 상태)");
+                sendHelpMessage(sender, "/relic give <유저> <0~30>", "유물 지급");
+                sendHelpMessage(sender, "/relic take <유저>", "유물 압수");
+                sendHelpMessage(sender, "/relic revive <유저>", "다운된 유저 부활");
+                sendHelpMessage(sender, "/relic resetcd <유저>", "유물 쿨타임 초기화");
+                sendHelpMessage(sender, "/relic announce <메시지>", "전체 공지");
+                sendHelpMessage(sender, "/relic checkowner <유물번호|all>", "유물 소유자 확인 (관리자용)");
+                sendHelpMessage(sender, "/relic spawnsealed <유물번호>", "테스트용: 유물을 봉인된 상태로 바닥에 소환");
+                sendHelpMessage(sender, "/relic resetstate <유물번호|all>", "유물을 강제로 DB에서 초기화 (미스폰 상태)");
             }
-            sender.sendMessage("§e/relic transfer <팀원> - 유물 양도 (5초 대기 필요)");
+            sendHelpMessage(sender, "/relic transfer <팀원>", "유물 양도 (5초 대기 필요)");
+            sender.sendMessage("§6§l=========================================");
             return true;
         }
 
