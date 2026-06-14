@@ -22,10 +22,14 @@ public class TeamManager implements Manager {
     
     // Team ID -> List of Member UUIDs
     private final Map<String, List<UUID>> teamMembers = new HashMap<>();
+    
+    // Team ID -> Expiration Time Millis
+    private final Map<String, Long> teamExpireTimes = new HashMap<>();
 
     // Target UUID -> Inviter UUID
     private final Map<UUID, UUID> pendingInvites = new HashMap<>();
     private final Map<UUID, BukkitTask> inviteTasks = new HashMap<>();
+    private BukkitTask expireTask;
 
     public TeamManager(RelicWars plugin) {
         this.plugin = plugin;
@@ -34,11 +38,13 @@ public class TeamManager implements Manager {
     @Override
     public void initialize() {
         loadTeamsFromDB();
+        startExpirationTask();
         plugin.getLogger().info("§a[RelicWars] TeamManager 초기화 완료.");
     }
 
     @Override
     public void shutdown() {
+        if (expireTask != null) expireTask.cancel();
         plugin.getLogger().info("§a[RelicWars] TeamManager 종료.");
     }
 
@@ -200,6 +206,9 @@ public class TeamManager implements Manager {
             list.add(inviter.getUniqueId());
             teamMembers.put(teamId, list);
             
+            // 2시간 만료
+            teamExpireTimes.put(teamId, System.currentTimeMillis() + (2L * 60 * 60 * 1000));
+            
             saveTeamToDB(inviter.getUniqueId(), teamId);
         }
 
@@ -286,5 +295,43 @@ public class TeamManager implements Manager {
                 plugin.getLogger().warning("팀 DB 삭제 실패: " + e.getMessage());
             }
         });
+    }
+
+    private void startExpirationTask() {
+        expireTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            long now = System.currentTimeMillis();
+            List<String> toDisband = new ArrayList<>();
+
+            for (Map.Entry<String, Long> entry : teamExpireTimes.entrySet()) {
+                String teamId = entry.getKey();
+                long expireTime = entry.getValue();
+
+                if (now >= expireTime) {
+                    toDisband.add(teamId);
+                } else if (expireTime - now <= 5 * 60 * 1000 && expireTime - now > 4 * 60 * 1000) {
+                    for (UUID member : getTeamMembers(teamId)) {
+                        Player p = Bukkit.getPlayer(member);
+                        if (p != null && p.isOnline()) {
+                            p.sendMessage("§e[RelicWars] 팀 유지 시간이 5분 남았습니다. 5분 후 자동으로 팀이 해체됩니다.");
+                        }
+                    }
+                }
+            }
+
+            for (String teamId : toDisband) {
+                teamExpireTimes.remove(teamId);
+                List<UUID> members = teamMembers.remove(teamId);
+                if (members != null) {
+                    for (UUID member : members) {
+                        playerTeams.remove(member);
+                        removeTeamFromDB(member);
+                        Player p = Bukkit.getPlayer(member);
+                        if (p != null && p.isOnline()) {
+                            p.sendMessage("§c[RelicWars] 팀 유지 시간(2시간)이 만료되어 팀이 자동 해체되었습니다.");
+                        }
+                    }
+                }
+            }
+        }, 20L * 60, 20L * 60);
     }
 }
