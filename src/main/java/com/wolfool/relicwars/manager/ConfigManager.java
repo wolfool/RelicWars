@@ -205,4 +205,5 @@ public class ConfigManager {
     public boolean isEndingRequiredAllSpawned() { return endingRequiredAllSpawned; }
     public int getEndingRequiredTeamRelics() { return endingRequiredTeamRelics; }
     public int getAltarDefenseMinutes() { return altarDefenseMinutes; }
+    public int getMaxRelicStealsPerDowned() { return plugin.getConfig().getInt("combat.max-relic-steals", 3); }
 }

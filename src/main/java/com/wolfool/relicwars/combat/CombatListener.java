@@ -139,13 +139,13 @@ public class CombatListener implements Listener {
                 plugin.getSanityManager().removeSanity(player, 30);
                 
                 // 체력 100% 회복
-                player.setHealth(player.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue());
+                player.setHealth(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue());
                 player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE, 160, 1, false, false));
                 
                 player.sendMessage("§6[불멸의 심장] 죽음을 극복하고 부활했습니다!");
                 org.bukkit.Bukkit.broadcast(net.kyori.adventure.text.Component.text("§6[경고] X:" + player.getLocation().getBlockX() + " 부근에서 강력한 불멸의 기운이 감지되었습니다!"));
                 
-                player.getWorld().spawnParticle(org.bukkit.Particle.TOTEM, player.getLocation(), 100, 1, 1, 1, 0.5);
+                player.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, player.getLocation(), 100, 1, 1, 1, 0.5);
                 player.getWorld().playSound(player.getLocation(), org.bukkit.Sound.ITEM_TOTEM_USE, 1.0f, 1.0f);
                 
                 // 반경 8블록 적 넉백
@@ -283,7 +283,7 @@ public class CombatListener implements Listener {
                     stealer.sendMessage("§4[탐욕의 적출자] 적출 성공! 대상의 모든 유물이 바닥에 떨어졌습니다.");
                     target.setHealth(0.0); // 즉사
                     
-                    stealer.getWorld().spawnParticle(org.bukkit.Particle.CRIT_MAGIC, target.getLocation().add(0, 1, 0), 50, 0.5, 0.5, 0.5, 0.1);
+                    stealer.getWorld().spawnParticle(org.bukkit.Particle.ENCHANTED_HIT, target.getLocation().add(0, 1, 0), 50, 0.5, 0.5, 0.5, 0.1);
                     stealer.getWorld().playSound(target.getLocation(), org.bukkit.Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 1.0f, 0.5f);
                 }
             }

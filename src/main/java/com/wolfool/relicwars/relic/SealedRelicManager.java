@@ -451,4 +451,5 @@ public class SealedRelicManager implements Manager, Listener {
         cancelTask(targetItem.getUniqueId());
         startUnsealTimer(targetItem, targetItem.getItemStack(), newTimeLeftSeconds);
     }
+    public java.util.Collection<org.bukkit.entity.Item> getSealedRelics() { return activeRelics; }
 }

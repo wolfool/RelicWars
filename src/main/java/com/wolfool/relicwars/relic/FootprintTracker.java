@@ -34,8 +34,8 @@ public class FootprintTracker {
                         // 가장 번호가 낮은(가장 강한) 유물 번호 찾기
                         int bestTierNum = 999;
                         for (ItemStack item : p.getInventory().getContents()) {
-                            if (item != null && RelicItemUtil.isRelic(item)) {
-                                int num = RelicItemUtil.getRelicNumber(item);
+                            if (item != null && com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
+                                int num = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(item);
                                 if (num < bestTierNum) {
                                     bestTierNum = num;
                                 }

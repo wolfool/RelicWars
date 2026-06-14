@@ -115,7 +115,7 @@ public class RelicAcquisitionListener implements Listener {
             if (def != null) {
                 plugin.getDatabaseManager().updateRelicState(relicNum, "held", achiever.getUniqueId().toString(), achiever.getLocation());
                 
-                ItemStack relic = RelicItemUtil.createRelicItem(def);
+                ItemStack relic = com.wolfool.relicwars.relic.RelicItemUtil.createRelicItem(def);
                 
                 java.util.HashMap<Integer, ItemStack> leftOver = achiever.getInventory().addItem(relic);
                 if (!leftOver.isEmpty()) {

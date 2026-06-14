@@ -80,7 +80,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                ItemStack relic = RelicItemUtil.createRelicItem(def);
+                ItemStack relic = com.wolfool.relicwars.relic.RelicItemUtil.createRelicItem(def);
                 target.getInventory().addItem(relic);
                 plugin.getDatabaseManager().updateRelicState(number, "held", target.getUniqueId().toString(), target.getLocation());
                 sender.sendMessage("§a[RelicWars] " + target.getName() + "님에게 " + def.getName() + " 유물을 지급했습니다.");
@@ -101,8 +101,8 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             int taken = 0;
             ItemStack[] contents = target.getInventory().getContents();
             for (int i = 0; i < contents.length; i++) {
-                if (RelicItemUtil.isRelic(contents[i])) {
-                    int num = RelicItemUtil.getRelicNumber(contents[i]);
+                if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(contents[i])) {
+                    int num = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(contents[i]);
                     plugin.getDatabaseManager().updateRelicState(num, "unspawned", null, null);
                     contents[i] = null;
                     taken++;
@@ -143,8 +143,8 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             int resetCount = 0;
             ItemStack[] contents = target.getInventory().getContents();
             for (ItemStack item : contents) {
-                if (RelicItemUtil.isRelic(item) && RelicItemUtil.isOnCooldown(item)) {
-                    RelicItemUtil.resetCooldown(item);
+                if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item) && com.wolfool.relicwars.relic.RelicItemUtil.isOnCooldown(item)) {
+                    com.wolfool.relicwars.relic.RelicItemUtil.resetCooldown(item);
                     resetCount++;
                 }
             }
@@ -234,7 +234,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                ItemStack relic = RelicItemUtil.createRelicItem(def);
+                ItemStack relic = com.wolfool.relicwars.relic.RelicItemUtil.createRelicItem(def);
                 plugin.getSealedRelicManager().spawnSealedRelic(player.getLocation(), relic, 5); // 5초 테스트 봉인
                 sender.sendMessage("§a[RelicWars] " + def.getName() + " 유물을 바닥에 봉인된 상태로 소환했습니다.");
             } catch (NumberFormatException e) {
@@ -341,7 +341,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
     private void executeTransfer(Player sender, Player target) {
         // 손에 들고 있는 유물만 넘기기 (기획상 전체 넘기기보다 손에 든 것만 넘기는 게 더 직관적)
         ItemStack hand = sender.getInventory().getItemInMainHand();
-        if (!RelicItemUtil.isRelic(hand)) {
+        if (!com.wolfool.relicwars.relic.RelicItemUtil.isRelic(hand)) {
             sender.sendMessage("§c[RelicWars] 손에 유물을 들고 있어야 합니다.");
             return;
         }
@@ -349,7 +349,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
         sender.getInventory().setItemInMainHand(null);
         target.getInventory().addItem(hand);
         
-        int relicNum = RelicItemUtil.getRelicNumber(hand);
+        int relicNum = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(hand);
         plugin.getDatabaseManager().updateRelicState(relicNum, "held", target.getUniqueId().toString(), target.getLocation());
 
         sender.sendMessage("§a[RelicWars] 유물을 " + target.getName() + "님에게 성공적으로 넘겼습니다!");

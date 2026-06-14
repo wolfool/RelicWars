@@ -76,9 +76,9 @@ public class RelicListener implements Listener {
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
 
-        if (!RelicItemUtil.isRelic(item)) return;
+        if (!com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) return;
 
-        int relicNumber = RelicItemUtil.getRelicNumber(item);
+        int relicNumber = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(item);
         RelicDefinition def = RelicDefinition.getByNumber(relicNumber);
         if (def == null) return;
 
@@ -93,21 +93,21 @@ public class RelicListener implements Listener {
         }
 
         // 쿨타임 중인지 체크
-        if (RelicItemUtil.isOnCooldown(item)) {
-            int remaining = RelicItemUtil.getRemainingCooldownSeconds(item);
+        if (com.wolfool.relicwars.relic.RelicItemUtil.isOnCooldown(item)) {
+            int remaining = com.wolfool.relicwars.relic.RelicItemUtil.getRemainingCooldownSeconds(item);
             player.sendMessage("§c[RelicWars] " + def.getDisplayName() +
                     " §c쿨타임 중입니다. (남은 시간: §e" +
-                    RelicItemUtil.formatCooldown(remaining) + "§c)");
+                    com.wolfool.relicwars.relic.RelicItemUtil.formatCooldown(remaining) + "§c)");
             event.setCancelled(true);
             return;
         }
 
         // --- 능력 발동 (Phase 6에서 각 유물별로 구현) ---
         if (def.getCooldownSeconds() > 0) {
-            RelicItemUtil.startCooldown(item, def.getCooldownSeconds());
+            com.wolfool.relicwars.relic.RelicItemUtil.startCooldown(item, def.getCooldownSeconds());
             player.sendMessage("§a[RelicWars] " + def.getDisplayName() +
                     " §a능력 발동! (쿨타임: §e" +
-                    RelicItemUtil.formatCooldown(def.getCooldownSeconds()) + "§a)");
+                    com.wolfool.relicwars.relic.RelicItemUtil.formatCooldown(def.getCooldownSeconds()) + "§a)");
 
             // 유물 스킬 실행
             plugin.getRelicAbilityHandler().execute(player, def);
@@ -125,9 +125,9 @@ public class RelicListener implements Listener {
         ItemStack main = player.getInventory().getItemInMainHand();
         ItemStack off = player.getInventory().getItemInOffHand();
 
-        if (RelicItemUtil.isRelic(main) && main.getType() == org.bukkit.Material.TOTEM_OF_UNDYING) {
+        if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(main) && main.getType() == org.bukkit.Material.TOTEM_OF_UNDYING) {
             event.setCancelled(true);
-        } else if (RelicItemUtil.isRelic(off) && off.getType() == org.bukkit.Material.TOTEM_OF_UNDYING) {
+        } else if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(off) && off.getType() == org.bukkit.Material.TOTEM_OF_UNDYING) {
             event.setCancelled(true);
         }
     }
@@ -187,7 +187,7 @@ public class RelicListener implements Listener {
             // Shift-클릭으로 넣기 방지
             if (event.isShiftClick()) {
                 ItemStack clickedItem = event.getCurrentItem();
-                if (RelicItemUtil.isRelic(clickedItem)) {
+                if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(clickedItem)) {
                     event.setCancelled(true);
                     player.sendMessage("§c[RelicWars] 유물은 자신의 인벤토리에만 보관할 수 있습니다!");
                     return;
@@ -197,7 +197,7 @@ public class RelicListener implements Listener {
             // 직접 커서로 넣기 방지
             if (event.getClickedInventory() != null && event.getClickedInventory().equals(topInventory)) {
                 ItemStack cursor = event.getCursor();
-                if (RelicItemUtil.isRelic(cursor)) {
+                if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(cursor)) {
                     event.setCancelled(true);
                     player.sendMessage("§c[RelicWars] 유물은 자신의 인벤토리에만 보관할 수 있습니다!");
                     return;
@@ -215,7 +215,7 @@ public class RelicListener implements Listener {
                                     topInventory.getType() == InventoryType.CREATIVE;
         if (!isPlayerInventory) {
             ItemStack cursor = event.getOldCursor();
-            if (RelicItemUtil.isRelic(cursor)) {
+            if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(cursor)) {
                 for (int slot : event.getRawSlots()) {
                     if (slot < topInventory.getSize()) { // Top inventory 쪽에 드래그 하려는 경우
                         event.setCancelled(true);
@@ -230,7 +230,7 @@ public class RelicListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onPrepareItemCraft(PrepareItemCraftEvent event) {
         for (ItemStack item : event.getInventory().getMatrix()) {
-            if (RelicItemUtil.isRelic(item)) {
+            if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
                 event.getInventory().setResult(null); // 제작 결과 삭제
                 return;
             }
@@ -245,7 +245,7 @@ public class RelicListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryMoveItem(InventoryMoveItemEvent event) {
         // 호퍼 등이 아이템을 옮길 때
-        if (RelicItemUtil.isRelic(event.getItem())) {
+        if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(event.getItem())) {
             event.setCancelled(true);
         }
     }
@@ -254,7 +254,7 @@ public class RelicListener implements Listener {
     public void onInventoryPickupItem(InventoryPickupItemEvent event) {
         // 호퍼 등이 바닥의 아이템을 주울 때 (봉인 상태이든 아니든 막음)
         ItemStack item = event.getItem().getItemStack();
-        if (RelicItemUtil.isRelic(item)) {
+        if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
             event.setCancelled(true);
         }
     }
@@ -264,7 +264,7 @@ public class RelicListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         ItemStack item = event.getItemDrop().getItemStack();
-        if (RelicItemUtil.isRelic(item)) {
+        if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§c[RelicWars] 유물은 'Q'키로 버릴 수 없습니다! (사망 시, 혹은 /relic transfer 로 양도만 가능)");
         }
@@ -274,8 +274,8 @@ public class RelicListener implements Listener {
     public void onEntityPickupItem(EntityPickupItemEvent event) {
         if (event.getEntity() instanceof Player player) {
             ItemStack item = event.getItem().getItemStack();
-            if (RelicItemUtil.isRelic(item)) {
-                int relicNum = RelicItemUtil.getRelicNumber(item);
+            if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
+                int relicNum = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(item);
                 plugin.getDatabaseManager().updateRelicState(relicNum, "held", player.getUniqueId().toString(), player.getLocation());
             }
         }
@@ -293,7 +293,7 @@ public class RelicListener implements Listener {
         if (!BLOCKED_INTERACT_BLOCKS.contains(blockType)) return;
 
         ItemStack item = event.getItem();
-        if (RelicItemUtil.isRelic(item)) {
+        if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§c[RelicWars] 유물은 여기에 설치할 수 없습니다!");
         }
@@ -304,7 +304,7 @@ public class RelicListener implements Listener {
         if (event.getRightClicked() instanceof org.bukkit.entity.ItemFrame || 
             event.getRightClicked() instanceof org.bukkit.entity.GlowItemFrame) {
             ItemStack item = event.getPlayer().getInventory().getItem(event.getHand());
-            if (RelicItemUtil.isRelic(item)) {
+            if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
                 event.setCancelled(true);
                 event.getPlayer().sendMessage("§c[RelicWars] 유물은 아이템 액자에 넣을 수 없습니다!");
             }
@@ -314,7 +314,7 @@ public class RelicListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerArmorStandManipulate(PlayerArmorStandManipulateEvent event) {
         ItemStack item = event.getPlayerItem();
-        if (RelicItemUtil.isRelic(item)) {
+        if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§c[RelicWars] 유물은 갑옷 거치대에 장착할 수 없습니다!");
         }
@@ -329,8 +329,8 @@ public class RelicListener implements Listener {
             java.util.List<ItemStack> toRemove = new java.util.ArrayList<>();
             
             for (ItemStack item : player.getInventory().getContents()) {
-                if (RelicItemUtil.isRelic(item)) {
-                    int relicNum = RelicItemUtil.getRelicNumber(item);
+                if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
+                    int relicNum = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(item);
                     String dbOwner = plugin.getDatabaseManager().getRelicOwner(relicNum);
                     
                     // DB 소유자가 자신이 아니거나 (또는 null이거나) 하면 복사된 가짜 유물이므로 삭제!

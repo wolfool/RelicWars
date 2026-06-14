@@ -186,4 +186,5 @@ public class SanityManager implements Manager {
             }
         }
     }
+    public void removeSanity(org.bukkit.entity.Player p, int amount) { setSanity(p, getSanity(p) - amount); }
 }
