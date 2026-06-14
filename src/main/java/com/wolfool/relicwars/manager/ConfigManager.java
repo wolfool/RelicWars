@@ -29,7 +29,8 @@ public class ConfigManager {
     private int reviveSeconds;
     private boolean dropRelicOnDowned;
     private String downedDropSelection;
-    private double finalDeathDropPercent;
+    // 소유 개수별 드랍 개수 [0개, 1개, 2개, 3개, 4개+]
+    private int[] downedDropCounts = new int[]{0, 0, 1, 1, 2};
     private String finalDeathDropSelection;
     private boolean keepInventoryOnDeath;
     private boolean friendlyFireEnabled;
@@ -86,7 +87,13 @@ public class ConfigManager {
         reviveSeconds = config.getInt("combat.revive-seconds", 8);
         dropRelicOnDowned = config.getBoolean("combat.drop-relic-on-downed", true);
         downedDropSelection = config.getString("combat.downed-drop-selection", "lowest_number");
-        finalDeathDropPercent = config.getDouble("combat.final-death-drop-percent", 0.30);
+        downedDropCounts = new int[]{
+            config.getInt("combat.downed-drop-count.own-0", 0),
+            config.getInt("combat.downed-drop-count.own-1", 0),
+            config.getInt("combat.downed-drop-count.own-2", 1),
+            config.getInt("combat.downed-drop-count.own-3", 1),
+            config.getInt("combat.downed-drop-count.own-4-plus", 2)
+        };
         finalDeathDropSelection = config.getString("combat.final-death-drop-selection", "highest_number");
         keepInventoryOnDeath = config.getBoolean("combat.keep-inventory-on-death", true);
         friendlyFireEnabled = config.getBoolean("combat.friendly-fire-enabled", false);
@@ -134,7 +141,16 @@ public class ConfigManager {
     public int getReviveSeconds() { return reviveSeconds; }
     public boolean isDropRelicOnDowned() { return dropRelicOnDowned; }
     public String getDownedDropSelection() { return downedDropSelection; }
-    public double getFinalDeathDropPercent() { return finalDeathDropPercent; }
+    /**
+     * 소유 유물 개수에 따른 드랍 개수를 반환합니다.
+     * @param ownCount 현재 소유 유물 개수
+     * @return 드랍할 유물 개수
+     */
+    public int getDownedDropCount(int ownCount) {
+        if (ownCount <= 0) return downedDropCounts[0];
+        if (ownCount >= 4) return downedDropCounts[4];
+        return downedDropCounts[ownCount];
+    }
     public String getFinalDeathDropSelection() { return finalDeathDropSelection; }
     public boolean isKeepInventoryOnDeath() { return keepInventoryOnDeath; }
     public boolean isFriendlyFireEnabled() { return friendlyFireEnabled; }

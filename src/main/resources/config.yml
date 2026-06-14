@@ -23,9 +23,18 @@ combat:
   revive-health: 6               # 구조(부활) 시 부활 체력 (하트 3칸 = 6 HP)
   revive-seconds: 8              # 팀원 구조에 걸리는 시간 (초)
 
-  drop-relic-on-downed: true     # 다운 시 즉시 유물 1개 바닥 드랍 여부
+  drop-relic-on-downed: true     # 다운 시 즉시 유물 드랍 여부
   downed-drop-selection: "lowest_number"   # 다운 시 드랍 기준 (가장 좋은 유물)
-  final-death-drop-percent: 0.30 # 확킬/자결 시 남은 유물의 드랍 비율 (30%)
+
+  # 다운 시 소유 유물 개수별 드랍 개수 (높은 번호(약한) 유물부터 드랍)
+  # 0개 소유 → 0개 드랍, 1개 소유 → 0개, 2개 소유 → 1개, 3개 소유 → 1개, 4개+ → 2개
+  downed-drop-count:
+    own-0: 0    # 유물 0개 소유 시 드랍 개수
+    own-1: 0    # 유물 1개 소유 시 드랍 개수
+    own-2: 1    # 유물 2개 소유 시 드랍 개수
+    own-3: 1    # 유물 3개 소유 시 드랍 개수
+    own-4-plus: 2  # 유물 4개 이상 소유 시 드랍 개수
+
   final-death-drop-selection: "highest_number"  # 확킬 시 드랍 기준 (가장 안 좋은 유물)
 
   keep-inventory-on-death: true  # 사망 시 일반 인벤토리(갑옷, 검 등) 보존 여부

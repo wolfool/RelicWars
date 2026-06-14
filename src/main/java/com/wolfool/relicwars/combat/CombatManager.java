@@ -81,13 +81,15 @@ public class CombatManager implements Manager {
         // === 다운 이펙트 ===
         com.wolfool.relicwars.relic.InteractionEffects.playDownEffect(player);
 
-        // --- 유물 1개 자동 드랍 ---
+        // --- 유물 자동 드랍 (소유 개수 기반) ---
         if (plugin.getConfigManager().isDropRelicOnDowned()) {
-            ItemStack droppedRelic = plugin.getRelicManager().extractDownedDrop(player);
-            if (droppedRelic != null) {
+            java.util.List<ItemStack> droppedRelics = plugin.getRelicManager().extractDownedDrop(player);
+            if (!droppedRelics.isEmpty()) {
                 int sealTime = plugin.getConfigManager().getDownedDropSealSeconds();
-                plugin.getSealedRelicManager().spawnSealedRelic(player.getLocation(), droppedRelic, sealTime);
-                player.sendMessage("§c[RelicWars] 다운되며 가장 좋은 유물을 떨어뜨렸습니다!");
+                for (ItemStack relic : droppedRelics) {
+                    plugin.getSealedRelicManager().spawnSealedRelic(player.getLocation(), relic, sealTime);
+                }
+                player.sendMessage("§c[RelicWars] 다운되며 유물 " + droppedRelics.size() + "개를 떨어뜨렸습니다!");
             }
         }
 

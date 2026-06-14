@@ -112,43 +112,43 @@ public class RelicManager implements Manager {
     // ======================== 드랍 로직 ========================
 
     /**
-     * 다운 시 드랍: 가장 좋은(번호가 낮은) 유물 1개를 인벤토리에서 제거하고 반환합니다.
-     * @return 드랍된 유물 아이템, 유물이 없으면 null
+     * 다운 시 드랍: 소유 개수에 따라 config에서 설정된 개수만큼 드랍.
+     * 높은 번호(약한 유물)부터 드랍합니다.
+     * @return 드랍된 유물 아이템 목록
      */
-    public ItemStack extractDownedDrop(Player player) {
+    public List<ItemStack> extractDownedDrop(Player player) {
         List<ItemStack> relics = getPlayerRelics(player);
-        if (relics.isEmpty()) return null;
+        if (relics.isEmpty()) return Collections.emptyList();
 
-        // 가장 낮은 번호 (가장 좋은) 유물 찾기
-        ItemStack bestRelic = null;
-        int lowestNumber = Integer.MAX_VALUE;
+        int dropCount = plugin.getConfigManager().getDownedDropCount(relics.size());
+        if (dropCount <= 0) return Collections.emptyList();
 
-        for (ItemStack item : relics) {
-            int num = RelicItemUtil.getRelicNumber(item);
-            if (num < lowestNumber) {
-                lowestNumber = num;
-                bestRelic = item;
-            }
+        // 번호 높은 순(가장 약한)으로 정렬
+        relics.sort((a, b) -> Integer.compare(
+                RelicItemUtil.getRelicNumber(b),
+                RelicItemUtil.getRelicNumber(a)));
+
+        List<ItemStack> dropped = new ArrayList<>();
+        for (int i = 0; i < dropCount && i < relics.size(); i++) {
+            ItemStack item = relics.get(i);
+            player.getInventory().remove(item);
+            dropped.add(item);
         }
-
-        if (bestRelic != null) {
-            player.getInventory().remove(bestRelic);
-        }
-        return bestRelic;
+        return dropped;
     }
 
     /**
-     * 확킬/자결 시 드랍: 남은 유물의 일정 비율을 가장 안 좋은(번호가 높은) 것부터 제거하고 반환합니다.
+     * 확킬/자결 시 드랍: 다운 드랍과 동일 로직 (이미 다운 시 드랍된 것 제외하고 남은 것에서 추가 드랍).
      * @return 드랍된 유물 아이템 목록
      */
     public List<ItemStack> extractDeathDrop(Player player) {
         List<ItemStack> relics = getPlayerRelics(player);
         if (relics.isEmpty()) return Collections.emptyList();
 
-        double dropPercent = plugin.getConfigManager().getFinalDeathDropPercent();
-        int dropCount = Math.max(1, (int) Math.ceil(relics.size() * dropPercent));
+        int dropCount = plugin.getConfigManager().getDownedDropCount(relics.size());
+        if (dropCount <= 0) return Collections.emptyList();
 
-        // 번호 높은 순(가장 안 좋은)으로 정렬
+        // 번호 높은 순(가장 약한)으로 정렬
         relics.sort((a, b) -> Integer.compare(
                 RelicItemUtil.getRelicNumber(b),
                 RelicItemUtil.getRelicNumber(a)));

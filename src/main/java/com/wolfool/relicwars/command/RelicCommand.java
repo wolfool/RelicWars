@@ -152,14 +152,41 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
 
         if (args[0].equalsIgnoreCase("checkowner") && sender.hasPermission("relicwars.admin")) {
             if (args.length < 2) {
-                sender.sendMessage("§c사용법: /relic checkowner <유물번호>");
+                sender.sendMessage("§c사용법: /relic checkowner <유물번호|all>");
                 return true;
             }
+
+            // === all: 모든 유물 상태 일괄 출력 ===
+            if (args[1].equalsIgnoreCase("all")) {
+                sender.sendMessage("§6§l========== 유물 소유 현황 ==========");
+                for (int i = 0; i <= 30; i++) {
+                    RelicDefinition def = RelicDefinition.getByNumber(i);
+                    if (def == null) continue;
+                    String state = plugin.getDatabaseManager().getRelicState(i);
+                    String ownerUuid = plugin.getDatabaseManager().getRelicOwner(i);
+
+                    String stateStr;
+                    if ("unspawned".equals(state)) {
+                        stateStr = "§8[미출현]";
+                    } else if ("sealed".equals(state)) {
+                        stateStr = "§c[봉인 중]";
+                    } else if (ownerUuid != null) {
+                        org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(UUID.fromString(ownerUuid));
+                        stateStr = "§a[소유] §f" + (op.getName() != null ? op.getName() : ownerUuid);
+                    } else {
+                        stateStr = "§e[" + state + "]";
+                    }
+                    sender.sendMessage(def.getTierColor() + String.format("#%03d ", i) + def.getName() + " §7→ " + stateStr);
+                }
+                sender.sendMessage("§6§l====================================");
+                return true;
+            }
+
             try {
                 int targetNum = Integer.parseInt(args[1]);
                 RelicDefinition def = RelicDefinition.getByNumber(targetNum);
                 if (def == null) {
-                    sender.sendMessage("§c[RelicWars] 존재하지 않는 유물 번호입니다. (1~30)");
+                    sender.sendMessage("§c[RelicWars] 존재하지 않는 유물 번호입니다. (0~30)");
                     return true;
                 }
                 String ownerUuid = plugin.getDatabaseManager().getRelicOwner(targetNum);
