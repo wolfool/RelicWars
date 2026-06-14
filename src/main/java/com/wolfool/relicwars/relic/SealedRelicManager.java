@@ -356,37 +356,4 @@ public class SealedRelicManager implements Manager, Listener {
         cancelTask(targetItem.getUniqueId());
         startUnsealTimer(targetItem, targetItem.getItemStack(), newTimeLeftSeconds);
     }
-
-    private void startForgottenRumorTask() {
-        // 1분마다 방치된 유물 확인
-        rumorTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            long now = System.currentTimeMillis();
-            for (ForgottenRelicData data : forgottenRelics.values()) {
-                long elapsedMinutes = (now - data.dropTimeMillis) / 60000;
-                
-                int nextStage = 0;
-                int blur = 0;
-                if (elapsedMinutes >= 120) { nextStage = 4; blur = 50; }
-                else if (elapsedMinutes >= 90) { nextStage = 3; blur = 100; }
-                else if (elapsedMinutes >= 60) { nextStage = 2; blur = 500; }
-                else if (elapsedMinutes >= 30) { nextStage = 1; blur = 1000; }
-
-                if (nextStage > data.lastRumorStage) {
-                    data.lastRumorStage = nextStage;
-                    RelicDefinition def = RelicDefinition.getByNumber(data.relicNumber);
-                    if (def != null) {
-                        int approxX = (int) (Math.round(data.dropLocation.getX() / blur) * blur);
-                        int approxZ = (int) (Math.round(data.dropLocation.getZ() / blur) * blur);
-                        String msg = String.format("§e[소문] 오랫동안 방치된 유물 %s§e의 기운이 강력해집니다! (대략 X: %d, Z: %d 부근)", 
-                            def.getTierColor() + def.getName(), approxX, approxZ);
-                        for (Player p : Bukkit.getOnlinePlayers()) {
-                            if (p.getWorld().equals(data.dropLocation.getWorld())) {
-                                p.sendMessage(msg);
-                            }
-                        }
-                    }
-                }
-            }
-        }, 20L * 60, 20L * 60);
-    }
 }
