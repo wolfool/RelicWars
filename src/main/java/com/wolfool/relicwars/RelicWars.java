@@ -102,6 +102,8 @@ public final class RelicWars extends JavaPlugin {
             getCommand("team").setExecutor(teamCommand);
         }
 
+        getServer().getPluginManager().registerEvents(new com.wolfool.relicwars.relic.RelicAcquisitionListener(this), this);
+
         getLogger().info("§a============================================");
         getLogger().info("§a  RelicWars v" + getDescription().getVersion() + " 활성화 완료!");
         getLogger().info("§a============================================");
