@@ -13,6 +13,7 @@ import com.wolfool.relicwars.relic.ability.RelicAbilityHandler;
 import com.wolfool.relicwars.sanity.SanityManager;
 import com.wolfool.relicwars.command.RelicCommand;
 import com.wolfool.relicwars.command.TeamCommand;
+import com.wolfool.relicwars.gui.HudManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.logging.Level;
@@ -37,6 +38,7 @@ public final class RelicWars extends JavaPlugin {
     private EndingManager endingManager;
     private RelicAbilityHandler relicAbilityHandler;
     private SanityManager sanityManager;
+    private HudManager hudManager;
     private com.wolfool.relicwars.relic.RelicAcquisitionListener acquisitionListener;
     private com.wolfool.relicwars.relic.FootprintTracker footprintTracker;
 
@@ -92,6 +94,9 @@ public final class RelicWars extends JavaPlugin {
         sanityManager = new SanityManager(this);
         sanityManager.initialize();
 
+        hudManager = new HudManager(this);
+        hudManager.initialize();
+
         footprintTracker = new com.wolfool.relicwars.relic.FootprintTracker(this);
         footprintTracker.initialize();
 
@@ -123,6 +128,7 @@ public final class RelicWars extends JavaPlugin {
         if (footprintTracker != null) footprintTracker.shutdown();
         if (endingManager != null) endingManager.shutdown();
         if (bossManager != null) bossManager.shutdown();
+        if (hudManager != null) hudManager.shutdown();
         if (teamManager != null) teamManager.shutdown();
         if (eventManager != null) eventManager.shutdown();
         if (combatManager != null) combatManager.shutdown();
