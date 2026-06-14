@@ -326,6 +326,7 @@ public class CombatManager implements Manager {
 
     /**
      * 보이드 추락 등으로 인해 유물이 유실되는 것을 막기 위한 안전 드랍 좌표 계산
+     * (보이드 추락 시 랜덤 좌표로 이동)
      */
     public Location getSafeDropLocation(Location loc) {
         org.bukkit.World world = loc.getWorld();
@@ -333,9 +334,13 @@ public class CombatManager implements Manager {
 
         // 고도가 너무 낮으면(보이드)
         if (loc.getY() < world.getMinHeight() + 5) {
+            int randomX = (int) (Math.random() * 2000) - 1000;
+            int randomZ = (int) (Math.random() * 2000) - 1000;
+            loc.setX(randomX);
+            loc.setZ(randomZ);
+            
             int highest = world.getHighestBlockYAt(loc);
             if (highest <= world.getMinHeight()) {
-                // 엔드 등에서 그 칸에 블록이 전혀 없다면, 임의의 공중(y=100)으로 올려서 띄움
                 loc.setY(100);
             } else {
                 loc.setY(highest + 1);
