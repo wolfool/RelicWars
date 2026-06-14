@@ -472,13 +472,13 @@ public class RelicAbilityHandler {
 
     // #019 봉인의 바늘 — 봉인 유물의 봉인 시간을 절반으로 단축
     private void execute019(Player player) {
-        org.bukkit.entity.ItemDisplay nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 50);
+        org.bukkit.entity.Item nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 50);
         if (nearest == null) {
             player.sendMessage("§c[RelicWars] 50블록 이내에 봉인된 유물이 없습니다!");
             return;
         }
 
-        plugin.getSealedRelicManager().halveSealTime(nearest);
+        plugin.getSealedRelicManager().reduceSealTime(nearest, 0.5);
         player.sendMessage("§d[봉인의 바늘] 근처 봉인 유물의 봉인 시간을 절반으로 단축했습니다!");
         player.sendMessage("§7  위치: X:" + (int) nearest.getLocation().getX() + " Y:" + (int) nearest.getLocation().getY() + " Z:" + (int) nearest.getLocation().getZ());
     }
