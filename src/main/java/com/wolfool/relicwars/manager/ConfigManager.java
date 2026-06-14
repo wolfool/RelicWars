@@ -29,8 +29,8 @@ public class ConfigManager {
     private int reviveSeconds;
     private boolean dropRelicOnDowned;
     private String downedDropSelection;
-    // 소유 개수별 드랍 개수 [0개, 1개, 2개, 3개, 4개+]
-    private int[] downedDropCounts = new int[]{0, 0, 1, 1, 2};
+    // 드랍 룰: {드랍개수 → [최소소유, 최대소유]}
+    private java.util.Map<Integer, int[]> downedDropRules = new java.util.HashMap<>();
     private String finalDeathDropSelection;
     private boolean keepInventoryOnDeath;
     private boolean friendlyFireEnabled;
@@ -87,13 +87,27 @@ public class ConfigManager {
         reviveSeconds = config.getInt("combat.revive-seconds", 8);
         dropRelicOnDowned = config.getBoolean("combat.drop-relic-on-downed", true);
         downedDropSelection = config.getString("combat.downed-drop-selection", "lowest_number");
-        downedDropCounts = new int[]{
-            config.getInt("combat.downed-drop-count.own-0", 0),
-            config.getInt("combat.downed-drop-count.own-1", 0),
-            config.getInt("combat.downed-drop-count.own-2", 1),
-            config.getInt("combat.downed-drop-count.own-3", 1),
-            config.getInt("combat.downed-drop-count.own-4-plus", 2)
-        };
+        // 드랍 룰 파싱: "드랍개수: 최소소유-최대소유"
+        downedDropRules.clear();
+        org.bukkit.configuration.ConfigurationSection dropRulesSection = config.getConfigurationSection("combat.downed-drop-rules");
+        if (dropRulesSection != null) {
+            for (String key : dropRulesSection.getKeys(false)) {
+                try {
+                    int dropCount = Integer.parseInt(key);
+                    String range = dropRulesSection.getString(key, "0-0");
+                    String[] parts = range.split("-");
+                    int min = Integer.parseInt(parts[0].trim());
+                    int max = Integer.parseInt(parts[1].trim());
+                    downedDropRules.put(dropCount, new int[]{min, max});
+                } catch (Exception ignored) {}
+            }
+        }
+        if (downedDropRules.isEmpty()) {
+            // 기본값
+            downedDropRules.put(0, new int[]{0, 1});
+            downedDropRules.put(1, new int[]{2, 3});
+            downedDropRules.put(2, new int[]{4, 99});
+        }
         finalDeathDropSelection = config.getString("combat.final-death-drop-selection", "highest_number");
         keepInventoryOnDeath = config.getBoolean("combat.keep-inventory-on-death", true);
         friendlyFireEnabled = config.getBoolean("combat.friendly-fire-enabled", false);
@@ -147,9 +161,13 @@ public class ConfigManager {
      * @return 드랍할 유물 개수
      */
     public int getDownedDropCount(int ownCount) {
-        if (ownCount <= 0) return downedDropCounts[0];
-        if (ownCount >= 4) return downedDropCounts[4];
-        return downedDropCounts[ownCount];
+        for (java.util.Map.Entry<Integer, int[]> entry : downedDropRules.entrySet()) {
+            int[] range = entry.getValue();
+            if (ownCount >= range[0] && ownCount <= range[1]) {
+                return entry.getKey();
+            }
+        }
+        return 0; // 매칭 없으면 드랍 없음
     }
     public String getFinalDeathDropSelection() { return finalDeathDropSelection; }
     public boolean isKeepInventoryOnDeath() { return keepInventoryOnDeath; }
