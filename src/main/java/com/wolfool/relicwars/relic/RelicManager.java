@@ -150,8 +150,8 @@ public class RelicManager implements Manager {
         int dropCount = plugin.getConfigManager().getDownedDropCount(relics.size());
         if (dropCount <= 0) return Collections.emptyList();
 
-        // 랜덤 강탈을 위해 셔플
-        java.util.Collections.shuffle(relics);
+        // 가장 높은 번호(약한) 유물부터 강탈당하도록 내림차순 정렬
+        relics.sort((i1, i2) -> Integer.compare(RelicItemUtil.getRelicNumber(i2), RelicItemUtil.getRelicNumber(i1)));
 
         List<ItemStack> dropped = new ArrayList<>();
         for (int i = 0; i < dropCount && i < relics.size(); i++) {

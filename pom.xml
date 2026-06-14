@@ -33,6 +33,27 @@
             <version>${paper.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.craftengine</groupId>
+            <artifactId>craftengine-api</artifactId>
+            <version>26.6.2</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/craft-engine-paper-plugin-26.6.2.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>com.betterhud</groupId>
+            <artifactId>betterhud-api</artifactId>
+            <version>2.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/BetterHud-bukkit-2.0.0.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>com.bettermodel</groupId>
+            <artifactId>bettermodel-api</artifactId>
+            <version>3.1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/bettermodel-3.1.0-paper.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>

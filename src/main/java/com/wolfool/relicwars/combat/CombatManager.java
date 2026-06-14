@@ -215,16 +215,29 @@ public class CombatManager implements Manager {
     // ======================== 사망 처리 ========================
 
     /**
-     * 유저를 사망시키고 스폰으로 보냅니다. (유물 추가 드랍 없음)
+     * 유저를 사망시키고 스폰으로 보냅니다. (기획서 수정: 사망 시 Steal 규칙에 따라 추가 드랍)
      */
     public void killPlayer(Player victim, Player attacker) {
+        // 사망 전 강탈 규칙 적용하여 바닥에 떨어뜨리기
+        List<ItemStack> stealDrops = plugin.getRelicManager().extractStealDrop(victim);
+        if (!stealDrops.isEmpty()) {
+            int sealTime = plugin.getConfigManager().getDeathDropSealSeconds();
+            for (ItemStack relic : stealDrops) {
+                Location dropLoc = victim.getLocation().clone().add(
+                        (Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
+                plugin.getSealedRelicManager().spawnSealedRelic(dropLoc, relic, sealTime);
+            }
+            victim.sendMessage("§c[RelicWars] 사망으로 인해 유물 " + stealDrops.size() + "개를 땅에 떨어뜨렸습니다!");
+            Bukkit.broadcast(net.kyori.adventure.text.Component.text("§e[소문] §f" + victim.getName() + "§e이(가) 처형되어 유물 " + stealDrops.size() + "개가 바닥에 흩어졌습니다!"));
+        }
+
         clearDownedState(victim);
         victim.setHealth(0.0);
 
         if (attacker != null) {
-            Bukkit.broadcast(Component.text("§c[RelicWars] §f" + victim.getName() + "§c님이 §f" + attacker.getName() + "§c님에게 처형당했습니다!"));
+            Bukkit.broadcast(net.kyori.adventure.text.Component.text("§c[RelicWars] §f" + victim.getName() + "§c님이 §f" + attacker.getName() + "§c님에게 처형당했습니다!"));
         } else {
-            Bukkit.broadcast(Component.text("§c[RelicWars] §f" + victim.getName() + "§c님이 사망했습니다."));
+            Bukkit.broadcast(net.kyori.adventure.text.Component.text("§c[RelicWars] §f" + victim.getName() + "§c님이 사망했습니다."));
         }
         com.wolfool.relicwars.relic.InteractionEffects.playExecuteEffect(victim, attacker);
     }
