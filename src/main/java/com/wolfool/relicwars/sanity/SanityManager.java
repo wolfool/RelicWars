@@ -96,6 +96,8 @@ public class SanityManager implements Manager {
             @Override
             public void run() {
                 for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (plugin.getCombatManager().isDowned(p)) continue; // 다운 상태에선 회복 안됨
+                    
                     int current = getSanity(p);
                     int max = plugin.getConfigManager().getSanityMax();
                     if (current < max) {

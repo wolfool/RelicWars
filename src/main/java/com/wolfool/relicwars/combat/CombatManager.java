@@ -82,6 +82,9 @@ public class CombatManager implements Manager {
         player.sendMessage("§c[RelicWars] 치명상을 입고 쓰러졌습니다! (다운 상태)");
         player.sendTitle("§c§lDOWNED", "§7팀원의 구조를 기다리세요...", 10, 70, 20);
 
+        // 정신력 0으로 초기화
+        plugin.getSanityManager().setSanity(player, 0);
+
         // === 다운 이펙트 ===
         com.wolfool.relicwars.relic.InteractionEffects.playDownEffect(player);
 

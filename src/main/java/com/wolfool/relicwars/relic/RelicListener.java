@@ -91,6 +91,13 @@ public class RelicListener implements Listener {
         RelicDefinition def = RelicDefinition.getByNumber(relicNumber);
         if (def == null) return;
 
+        // 다운 상태에서는 유물 능력 사용 불가
+        if (plugin.getCombatManager().isDowned(player)) {
+            player.sendMessage("§c[RelicWars] 다운 상태에서는 유물 능력을 사용할 수 없습니다!");
+            event.setCancelled(true);
+            return;
+        }
+
         // 쿨타임 중인지 체크
         if (RelicItemUtil.isOnCooldown(item)) {
             int remaining = RelicItemUtil.getRemainingCooldownSeconds(item);
