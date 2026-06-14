@@ -40,7 +40,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§e/relic announce <메시지> - 전체 공지");
                 sender.sendMessage("§e/relic checkowner <유물번호> - 특정 유물 소유자 확인 (관리자용)");
                 sender.sendMessage("§e/relic spawnsealed <유물번호> - 테스트용: 유물을 봉인된 상태로 바닥에 소환");
-                sender.sendMessage("§e/relic resetstate <유물번호> - 유물을 강제로 DB에서 초기화 (미스폰 상태)");
+                sender.sendMessage("§e/relic resetstate <유물번호|all> - 유물을 강제로 DB에서 초기화 (미스폰 상태)");
             }
             sender.sendMessage("§e/relic transfer <팀원> - 유물 양도 (5초 대기 필요)");
             return true;
@@ -206,9 +206,24 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
 
         if (args[0].equalsIgnoreCase("resetstate") && sender.hasPermission("relicwars.admin")) {
             if (args.length < 2) {
-                sender.sendMessage("§c사용법: /relic resetstate <유물번호>");
+                sender.sendMessage("§c사용법: /relic resetstate <유물번호|all>");
                 return true;
             }
+
+            // "all" 처리: 모든 유물 초기화
+            if (args[1].equalsIgnoreCase("all")) {
+                int count = 0;
+                for (int i = 0; i <= 30; i++) {
+                    RelicDefinition def = RelicDefinition.getByNumber(i);
+                    if (def != null) {
+                        plugin.getDatabaseManager().updateRelicState(i, "unspawned", null, null);
+                        count++;
+                    }
+                }
+                sender.sendMessage("§a[RelicWars] 총 " + count + "개 유물의 DB 상태를 모두 초기화(unspawned)했습니다.");
+                return true;
+            }
+
             try {
                 int number = Integer.parseInt(args[1]);
                 RelicDefinition def = RelicDefinition.getByNumber(number);
@@ -220,7 +235,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 plugin.getDatabaseManager().updateRelicState(number, "unspawned", null, null);
                 sender.sendMessage("§a[RelicWars] " + number + "번 유물의 DB 상태를 초기화(unspawned)했습니다. 이제 다시 스폰/기믹 달성이 가능합니다.");
             } catch (NumberFormatException e) {
-                sender.sendMessage("§c숫자를 입력하세요.");
+                sender.sendMessage("§c숫자 또는 'all'을 입력하세요.");
             }
             return true;
         }

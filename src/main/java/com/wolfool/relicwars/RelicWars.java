@@ -37,6 +37,7 @@ public final class RelicWars extends JavaPlugin {
     private EndingManager endingManager;
     private RelicAbilityHandler relicAbilityHandler;
     private SanityManager sanityManager;
+    private com.wolfool.relicwars.relic.RelicAcquisitionListener acquisitionListener;
 
     /**
      * 플러그인 인스턴스를 반환합니다. (싱글톤)
@@ -102,7 +103,8 @@ public final class RelicWars extends JavaPlugin {
             getCommand("team").setExecutor(teamCommand);
         }
 
-        getServer().getPluginManager().registerEvents(new com.wolfool.relicwars.relic.RelicAcquisitionListener(this), this);
+        acquisitionListener = new com.wolfool.relicwars.relic.RelicAcquisitionListener(this);
+        getServer().getPluginManager().registerEvents(acquisitionListener, this);
 
         getLogger().info("§a============================================");
         getLogger().info("§a  RelicWars v" + getDescription().getVersion() + " 활성화 완료!");
@@ -156,4 +158,5 @@ public final class RelicWars extends JavaPlugin {
     public EndingManager getEndingManager() { return endingManager; }
     public RelicAbilityHandler getRelicAbilityHandler() { return relicAbilityHandler; }
     public SanityManager getSanityManager() { return sanityManager; }
+    public com.wolfool.relicwars.relic.RelicAcquisitionListener getAcquisitionListener() { return acquisitionListener; }
 }

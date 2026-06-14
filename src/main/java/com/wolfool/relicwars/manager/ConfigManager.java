@@ -34,6 +34,7 @@ public class ConfigManager {
     private boolean keepInventoryOnDeath;
     private boolean friendlyFireEnabled;
     private int combatTagSeconds;
+    private int downedAutoExecuteSeconds;
 
     // --- 정신력(Sanity) ---
     private int sanityMax;
@@ -90,6 +91,7 @@ public class ConfigManager {
         keepInventoryOnDeath = config.getBoolean("combat.keep-inventory-on-death", true);
         friendlyFireEnabled = config.getBoolean("combat.friendly-fire-enabled", false);
         combatTagSeconds = config.getInt("combat.combat-tag-seconds", 15);
+        downedAutoExecuteSeconds = config.getInt("combat.downed-auto-execute-seconds", 60);
 
         // --- 정신력 ---
         sanityMax = config.getInt("sanity.max", 100);
@@ -137,6 +139,7 @@ public class ConfigManager {
     public boolean isKeepInventoryOnDeath() { return keepInventoryOnDeath; }
     public boolean isFriendlyFireEnabled() { return friendlyFireEnabled; }
     public int getCombatTagSeconds() { return combatTagSeconds; }
+    public int getDownedAutoExecuteSeconds() { return downedAutoExecuteSeconds; }
 
     // --- 정신력 ---
     public int getSanityMax() { return sanityMax; }

@@ -29,6 +29,9 @@ public class CombatManager implements Manager {
     // UUID -> 확킬 맞은 횟수 (최대 5타)
     private final Map<UUID, Integer> executeHits = new HashMap<>();
 
+    // UUID -> 자동 확킬 타이머 태스크
+    private final Map<UUID, org.bukkit.scheduler.BukkitTask> autoExecuteTasks = new HashMap<>();
+
     public CombatManager(RelicWars plugin) {
         this.plugin = plugin;
     }
@@ -43,6 +46,10 @@ public class CombatManager implements Manager {
     public void shutdown() {
         downedPlayers.clear();
         executeHits.clear();
+        for (org.bukkit.scheduler.BukkitTask task : autoExecuteTasks.values()) {
+            task.cancel();
+        }
+        autoExecuteTasks.clear();
         plugin.getLogger().info("§a[RelicWars] CombatManager 종료.");
     }
 
@@ -79,6 +86,20 @@ public class CombatManager implements Manager {
                 plugin.getSealedRelicManager().spawnSealedRelic(player.getLocation(), droppedRelic, sealTime);
                 player.sendMessage("§c[RelicWars] 다운되며 가장 좋은 유물을 떨어뜨렸습니다!");
             }
+        }
+
+        // --- 자동 확킬 타이머 ---
+        int autoExecuteSeconds = plugin.getConfigManager().getDownedAutoExecuteSeconds();
+        if (autoExecuteSeconds > 0) {
+            org.bukkit.scheduler.BukkitTask autoTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                autoExecuteTasks.remove(player.getUniqueId());
+                if (isDowned(player) && player.isOnline()) {
+                    player.sendMessage("§c[RelicWars] 구조받지 못해 사망했습니다...");
+                    Bukkit.broadcast(Component.text("§c[RelicWars] §f" + player.getName() + "§c님이 구조받지 못해 사망했습니다."));
+                    executePlayer(player, null);
+                }
+            }, autoExecuteSeconds * 20L);
+            autoExecuteTasks.put(player.getUniqueId(), autoTask);
         }
     }
 
@@ -177,6 +198,10 @@ public class CombatManager implements Manager {
     private void clearDownedState(Player player) {
         downedPlayers.remove(player.getUniqueId());
         executeHits.remove(player.getUniqueId());
+
+        // 자동 확킬 타이머 취소
+        org.bukkit.scheduler.BukkitTask autoTask = autoExecuteTasks.remove(player.getUniqueId());
+        if (autoTask != null) autoTask.cancel();
 
         player.removePotionEffect(PotionEffectType.SLOWNESS);
         player.removePotionEffect(PotionEffectType.JUMP_BOOST);

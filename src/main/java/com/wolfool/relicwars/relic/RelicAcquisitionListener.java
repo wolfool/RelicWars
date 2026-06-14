@@ -11,15 +11,16 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class RelicAcquisitionListener implements Listener {
 
     private final RelicWars plugin;
     private final Map<UUID, Double> fallStartY = new HashMap<>();
     private BukkitTask fallTrackerTask;
+
+    // #025 최후의 봉합: 10분 안에 3회 구조 추적 (rescuer UUID -> 구조 성공 시간 목록)
+    private final Map<UUID, List<Long>> reviveTracker025 = new HashMap<>();
 
     public RelicAcquisitionListener(RelicWars plugin) {
         this.plugin = plugin;
@@ -55,18 +56,14 @@ public class RelicAcquisitionListener implements Listener {
                         && !player.hasPotionEffect(PotionEffectType.LEVITATION);
 
                 if (isFalling) {
-                    // 추락 시작 지점 기록 (아직 없으면 기록)
                     fallStartY.putIfAbsent(player.getUniqueId(), player.getLocation().getY());
                 } else {
-                    // 추락이 끝났거나(착지/물에 빠짐), 비정상적인 체공(비행/겉날개 등)을 한 경우
                     Double startY = fallStartY.remove(player.getUniqueId());
                     if (startY != null) {
-                        // 추락이 끝난 시점의 Y 좌표
                         double endY = player.getLocation().getY();
                         
-                        // Y=319 이상에서 시작하여 Y=-60 이하로 떨어졌고, 죽지 않고 살았다면 (물 양동이 낙법 등)
+                        // Y=319 이상에서 시작하여 Y=-60 이하로 떨어졌고, 죽지 않고 살았다면
                         if (startY >= 319.0 && endY <= -60.0 && !player.isDead()) {
-                            // 기믹 달성! (1틱 지연하여 데미지로 죽는지 여부 최종 확인 후 지급)
                             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                                 if (!player.isDead() && !plugin.getCombatManager().isDowned(player)) {
                                     spawnRelicIfUnspawned(29, player.getLocation(), player);
@@ -76,7 +73,37 @@ public class RelicAcquisitionListener implements Listener {
                     }
                 }
             }
-        }, 0L, 2L); // 2틱(0.1초) 주기로 추적
+        }, 0L, 2L);
+    }
+
+    // ======================== #025 최후의 봉합 & #024 붉은 봉합 ========================
+
+    /**
+     * CombatListener에서 구조 완료 시 호출합니다.
+     * @param rescuer 구조한 사람
+     * @param target 구조받은 사람
+     */
+    public void onReviveSuccess(Player rescuer, Player target) {
+        // --- #024 붉은 봉합: 체력 2칸(4.0) 이하에서 팀원 구조 성공 ---
+        if (rescuer.getHealth() <= 4.0) {
+            spawnRelicIfUnspawned(24, rescuer.getLocation(), rescuer);
+        }
+
+        // --- #025 최후의 봉합: 10분 안에 3회 구조 성공 ---
+        UUID rescuerId = rescuer.getUniqueId();
+        long now = System.currentTimeMillis();
+        long tenMinutes = 10 * 60 * 1000L;
+
+        List<Long> times = reviveTracker025.computeIfAbsent(rescuerId, k -> new ArrayList<>());
+        times.add(now);
+
+        // 10분이 지난 기록 제거
+        times.removeIf(t -> (now - t) > tenMinutes);
+
+        if (times.size() >= 3) {
+            spawnRelicIfUnspawned(25, rescuer.getLocation(), rescuer);
+            times.clear();
+        }
     }
 
     // ======================== 공통 스폰 유틸리티 ========================
@@ -86,12 +113,10 @@ public class RelicAcquisitionListener implements Listener {
         if ("unspawned".equals(state)) {
             RelicDefinition def = RelicDefinition.getByNumber(relicNum);
             if (def != null) {
-                // 이미 스폰되었다고 DB에 업데이트 (소지 중 상태로)
                 plugin.getDatabaseManager().updateRelicState(relicNum, "held", achiever.getUniqueId().toString(), achiever.getLocation());
                 
                 ItemStack relic = RelicItemUtil.createRelicItem(def);
                 
-                // 인벤토리에 지급 (공간이 없으면 바닥에 일반 드랍)
                 java.util.HashMap<Integer, ItemStack> leftOver = achiever.getInventory().addItem(relic);
                 if (!leftOver.isEmpty()) {
                     achiever.getWorld().dropItem(achiever.getLocation(), leftOver.get(0));
