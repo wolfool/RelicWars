@@ -39,6 +39,9 @@ public class CombatManager implements Manager {
     // UUID -> 전투 태그 만료 시각 (밀리초)
     private final Map<UUID, Long> combatTags = new HashMap<>();
 
+    // UUID -> 강탈 당한 횟수
+    private final Map<UUID, Integer> stealCounts = new HashMap<>();
+
     public CombatManager(RelicWars plugin) {
         this.plugin = plugin;
     }
@@ -77,6 +80,7 @@ public class CombatManager implements Manager {
     public void setDowned(Player player) {
         downedPlayers.put(player.getUniqueId(), System.currentTimeMillis());
         executeHits.put(player.getUniqueId(), 0);
+        stealCounts.put(player.getUniqueId(), 0);
 
         // #017 왜곡의 닻 텔레포트 세이브
         String teamId = plugin.getTeamManager().getTeamId(player);
@@ -195,11 +199,20 @@ public class CombatManager implements Manager {
     public int stealRelics(Player victim, Player stealer) {
         if (!isDowned(victim) || isInvincible(victim)) return 0;
 
+        int maxSteals = plugin.getConfigManager().getMaxRelicStealsPerDowned();
+        int currentSteals = stealCounts.getOrDefault(victim.getUniqueId(), 0);
+        if (currentSteals >= maxSteals) {
+            stealer.sendMessage("§c[RelicWars] 이 대상에게서는 더 이상 강탈할 수 없습니다.");
+            return 0;
+        }
+
         List<ItemStack> stealDrops = plugin.getRelicManager().extractStealDrop(victim);
         if (stealDrops.isEmpty()) {
             stealer.sendMessage("§7[RelicWars] 이 플레이어에게는 강탈할 유물이 없습니다.");
             return 0;
         }
+
+        stealCounts.put(victim.getUniqueId(), currentSteals + 1);
 
         int sealTime = plugin.getConfigManager().getDownedDropSealSeconds();
         for (ItemStack relic : stealDrops) {
@@ -266,6 +279,7 @@ public class CombatManager implements Manager {
     private void clearDownedState(Player player) {
         downedPlayers.remove(player.getUniqueId());
         executeHits.remove(player.getUniqueId());
+        stealCounts.remove(player.getUniqueId());
 
         // 자동 확킬 타이머 취소
         org.bukkit.scheduler.BukkitTask autoTask = autoExecuteTasks.remove(player.getUniqueId());

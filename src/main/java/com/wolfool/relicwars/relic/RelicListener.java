@@ -15,6 +15,14 @@ import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryMoveItemEvent;
+import org.bukkit.event.inventory.InventoryPickupItemEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.inventory.EquipmentSlot;
@@ -198,6 +206,59 @@ public class RelicListener implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        Inventory topInventory = event.getView().getTopInventory();
+        boolean isPlayerInventory = topInventory.getType() == InventoryType.CRAFTING || 
+                                    topInventory.getType() == InventoryType.PLAYER || 
+                                    topInventory.getType() == InventoryType.CREATIVE;
+        if (!isPlayerInventory) {
+            ItemStack cursor = event.getOldCursor();
+            if (RelicItemUtil.isRelic(cursor)) {
+                for (int slot : event.getRawSlots()) {
+                    if (slot < topInventory.getSize()) { // Top inventory 쪽에 드래그 하려는 경우
+                        event.setCancelled(true);
+                        player.sendMessage("§c[RelicWars] 유물은 외부 상자에 넣을 수 없습니다!");
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPrepareItemCraft(PrepareItemCraftEvent event) {
+        for (ItemStack item : event.getInventory().getMatrix()) {
+            if (RelicItemUtil.isRelic(item)) {
+                event.getInventory().setResult(null); // 제작 결과 삭제
+                return;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPlayerSwapHandItems(PlayerSwapHandItemsEvent event) {
+        // 손 바꾸기는 허용 (양손 다 플레이어 인벤토리)
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onInventoryMoveItem(InventoryMoveItemEvent event) {
+        // 호퍼 등이 아이템을 옮길 때
+        if (RelicItemUtil.isRelic(event.getItem())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onInventoryPickupItem(InventoryPickupItemEvent event) {
+        // 호퍼 등이 바닥의 아이템을 주울 때 (봉인 상태이든 아니든 막음)
+        ItemStack item = event.getItem().getItemStack();
+        if (RelicItemUtil.isRelic(item)) {
+            event.setCancelled(true);
+        }
+    }
+
     // ======================== 드랍 및 줍기 추적 ========================
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -236,6 +297,61 @@ public class RelicListener implements Listener {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§c[RelicWars] 유물은 여기에 설치할 수 없습니다!");
         }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
+        if (event.getRightClicked() instanceof org.bukkit.entity.ItemFrame || 
+            event.getRightClicked() instanceof org.bukkit.entity.GlowItemFrame) {
+            ItemStack item = event.getPlayer().getInventory().getItem(event.getHand());
+            if (RelicItemUtil.isRelic(item)) {
+                event.setCancelled(true);
+                event.getPlayer().sendMessage("§c[RelicWars] 유물은 아이템 액자에 넣을 수 없습니다!");
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPlayerArmorStandManipulate(PlayerArmorStandManipulateEvent event) {
+        ItemStack item = event.getPlayerItem();
+        if (RelicItemUtil.isRelic(item)) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§c[RelicWars] 유물은 갑옷 거치대에 장착할 수 없습니다!");
+        }
+    }
+
+    // ======================== 중복 복사본 검사 ========================
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+            java.util.List<ItemStack> toRemove = new java.util.ArrayList<>();
+            
+            for (ItemStack item : player.getInventory().getContents()) {
+                if (RelicItemUtil.isRelic(item)) {
+                    int relicNum = RelicItemUtil.getRelicNumber(item);
+                    String dbOwner = plugin.getDatabaseManager().getRelicOwner(relicNum);
+                    
+                    // DB 소유자가 자신이 아니거나 (또는 null이거나) 하면 복사된 가짜 유물이므로 삭제!
+                    if (dbOwner == null || !dbOwner.equals(player.getUniqueId().toString())) {
+                        toRemove.add(item);
+                        plugin.getLogger().warning("[보안] " + player.getName() + "의 인벤토리에서 복사된/비정상 유물 #" + relicNum + " 이 적발되어 회수 조치됨.");
+                    }
+                }
+            }
+            
+            if (!toRemove.isEmpty()) {
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (player.isOnline()) {
+                        for (ItemStack fake : toRemove) {
+                            player.getInventory().remove(fake);
+                        }
+                        player.sendMessage("§c[RelicWars] 인벤토리에서 비정상적인 유물(복사본)이 감지되어 시스템에 의해 회수되었습니다.");
+                    }
+                });
+            }
+        }, 20L); // 접속 1초 후 비동기 검사
     }
 
     // ======================== 채팅 가로채기 (#020 소문의 등불) ========================
