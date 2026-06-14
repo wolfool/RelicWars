@@ -909,9 +909,12 @@ public class RelicAbilityHandler implements Listener {
         victim.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 60, 1, false, false));
         victim.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 60, 0, false, false));
         victim.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 60, 0, false, false));
-        victim.sendMessage("§4[?�탈?�의 ?�갑] ?�군가 ?�신???�신?�을 강탈?�습?�다!");
-        player.sendMessage("§a[?�탈?�의 ?�갑] " + victim.getName() + "???�신?�을 30 강탈?�습?�다!");
-        // TODO: ?�신??Sanity) ?�스???�동
+        int stolenSanity = Math.min(30, plugin.getSanityManager().getSanity(victim));
+        plugin.getSanityManager().setSanity(victim, plugin.getSanityManager().getSanity(victim) - stolenSanity);
+        plugin.getSanityManager().restoreSanity(player, stolenSanity);
+
+        victim.sendMessage("�4[약탈자의 장갑] 누군가 당신의 정신력을 " + stolenSanity + " 강탈했습니다!");
+        player.sendMessage("�a[약탈자의 장갑] " + victim.getName() + "의 정신력을 " + stolenSanity + " 강탈했습니다!");
     }
 
     // #011 공명??�???300블록 ???�물 보유???�원 ?�치 ?�발
