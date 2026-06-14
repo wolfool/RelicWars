@@ -61,7 +61,7 @@ public class SealedRelicManager implements Manager, Listener {
     }
 
     /**
-     * 바닥에 봉인된 유물을 생성합니다.
+     * 바닥에 봉인된 유물을 생성합니다. (물리엔진 적용)
      *
      * @param location 드랍할 위치
      * @param relic    유물 아이템
@@ -70,66 +70,47 @@ public class SealedRelicManager implements Manager, Listener {
     public void spawnSealedRelic(Location location, ItemStack relic, int sealSeconds) {
         if (relic == null || !RelicItemUtil.isRelic(relic)) return;
 
-        Location groundLoc = location.clone();
-        while (groundLoc.getBlockY() > groundLoc.getWorld().getMinHeight()) {
-            org.bukkit.block.Block b = groundLoc.clone().subtract(0, 1, 0).getBlock();
-            if (b.getType().isSolid() || b.isLiquid()) {
-                break;
-            }
-            groundLoc.subtract(0, 1, 0);
+        // 실제 드랍 아이템(Item) 엔티티를 소환하여 중력(물리) 적용
+        org.bukkit.entity.Item itemEntity = location.getWorld().dropItem(location, relic);
+        itemEntity.setPickupDelay(32767); // 일반 줍기 불가
+        itemEntity.setUnlimitedLifetime(true);
+        itemEntity.setInvulnerable(true);
+        
+        RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
+        if (def != null) {
+            itemEntity.customName(Component.text("§c[봉인 중] " + def.getTierColor() + def.getName() + " §7(" + sealSeconds + "초)"));
+            itemEntity.setCustomNameVisible(true);
         }
         
-        Location spawnLoc = groundLoc.clone().add(0, 0.5, 0);
-        
-        ItemDisplay display = spawnLoc.getWorld().spawn(spawnLoc, ItemDisplay.class, entity -> {
-            entity.setItemStack(relic);
-            entity.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GROUND);
-            
-            // 시각적 효과 (회전 및 크기)
-            Transformation transform = new Transformation(
-                    new Vector3f(0, 0, 0),
-                    new AxisAngle4f(0, 0, 1, 0),
-                    new Vector3f(1.5f, 1.5f, 1.5f),
-                    new AxisAngle4f(0, 0, 1, 0)
-            );
-            entity.setTransformation(transform);
-            
-            // 이름표 표시
-            RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
-            if (def != null) {
-                entity.customName(Component.text("§c[봉인 중] " + def.getTierColor() + def.getName() + " §7(" + sealSeconds + "초)"));
-                entity.setCustomNameVisible(true);
-            }
-            
-            if (plugin.getConfigManager().isSealGlow()) {
-                entity.setGlowing(true);
-            }
+        if (plugin.getConfigManager().isSealGlow()) {
+            itemEntity.setGlowing(true);
+        }
 
-            // PDC 태그: 봉인 상태
-            entity.getPersistentDataContainer().set(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE, (byte) 1);
-            entity.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 
-                    System.currentTimeMillis() + (sealSeconds * 1000L)); // 봉인 해제 시간을 쿨타임 태그로 임시 사용
-        });
+        // PDC 태그 설정
+        itemEntity.getPersistentDataContainer().set(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE, (byte) 1);
+        itemEntity.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 
+                System.currentTimeMillis() + (sealSeconds * 1000L));
 
-        // 우클릭 상호작용을 위한 투명 엔티티 생성
-        Location interactionLoc = groundLoc.clone();
-        org.bukkit.entity.Interaction interaction = spawnLoc.getWorld().spawn(interactionLoc, org.bukkit.entity.Interaction.class, ent -> {
-            ent.setInteractionWidth(1.5f);
-            ent.setInteractionHeight(1.5f);
+        // 얇은 인터렉션 엔티티 생성 후 아이템에 탑승시킴 (같이 이동/추락함)
+        org.bukkit.entity.Interaction interaction = location.getWorld().spawn(location, org.bukkit.entity.Interaction.class, ent -> {
+            ent.setInteractionWidth(1.0f);
+            ent.setInteractionHeight(0.3f); // 바닥에 얇게
             ent.getPersistentDataContainer().set(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE, (byte) 1);
         });
 
-        startUnsealTimer(display, relic, sealSeconds);
+        itemEntity.addPassenger(interaction);
+
+        startUnsealTimer(itemEntity, relic, sealSeconds);
     }
 
-    private void startUnsealTimer(ItemDisplay display, ItemStack originalRelic, int seconds) {
+    private void startUnsealTimer(org.bukkit.entity.Item itemEntity, ItemStack originalRelic, int seconds) {
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
             int timeLeft = seconds;
 
             @Override
             public void run() {
-                if (!display.isValid()) {
-                    cancelTask(display.getUniqueId());
+                if (!itemEntity.isValid()) {
+                    cancelTask(itemEntity.getUniqueId());
                     return;
                 }
 
@@ -137,36 +118,39 @@ public class SealedRelicManager implements Manager, Listener {
                     // 봉인 해제
                     RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(originalRelic));
                     if (def != null) {
-                        display.customName(Component.text("§a[우클릭으로 획득] " + def.getTierColor() + def.getName()));
+                        itemEntity.customName(Component.text("§a[우클릭으로 획득] " + def.getTierColor() + def.getName()));
                     }
-                    display.setGlowing(false);
+                    itemEntity.setGlowing(false);
                     // 봉인 완료 태그
-                    display.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 0L);
-                    cancelTask(display.getUniqueId());
+                    itemEntity.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 0L);
+                    cancelTask(itemEntity.getUniqueId());
                     return;
                 }
 
                 // 타이머 업데이트
                 RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(originalRelic));
                 if (def != null) {
-                    display.customName(Component.text("§c[봉인 중] " + def.getTierColor() + def.getName() + " §7(" + timeLeft + "초)"));
+                    itemEntity.customName(Component.text("§c[봉인 중] " + def.getTierColor() + def.getName() + " §7(" + timeLeft + "초)"));
                 }
-                
-                // 디스플레이 회전 애니메이션
-                Transformation t = display.getTransformation();
-                t.getRightRotation().rotateY(0.1f);
-                display.setTransformation(t);
 
                 timeLeft--;
             }
         }, 0L, 20L);
 
-        unsealTasks.put(display.getUniqueId(), task);
+        unsealTasks.put(itemEntity.getUniqueId(), task);
     }
 
     private void cancelTask(UUID displayId) {
         BukkitTask task = unsealTasks.remove(displayId);
         if (task != null) task.cancel();
+    }
+
+    // 상자 등에 봉인된 유물이 일반 아이템처럼 들어가는 것 방지 (이미 PickupDelay로 막았지만 이중 방지)
+    @EventHandler
+    public void onEntityPickupItem(org.bukkit.event.entity.EntityPickupItemEvent event) {
+        if (event.getItem().getPersistentDataContainer().has(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE)) {
+            event.setCancelled(true);
+        }
     }
 
     // ======================== 봉인 유물 획득 ========================
@@ -182,18 +166,24 @@ public class SealedRelicManager implements Manager, Listener {
         if (plugin.getCombatManager().isDowned(player)) return;
 
         org.bukkit.entity.Entity vehicle = interaction.getVehicle();
-        ItemDisplay tempDisplay = null;
-        if (vehicle instanceof ItemDisplay d) {
-            tempDisplay = d;
+        org.bukkit.entity.Item tempItem = null;
+        if (vehicle instanceof org.bukkit.entity.Item i) {
+            tempItem = i;
         } else {
-            tempDisplay = getNearestSealed(interaction.getLocation(), 1.0);
+            // 탑승이 풀린 경우 대비
+            for (org.bukkit.entity.Entity e : interaction.getNearbyEntities(1, 1, 1)) {
+                if (e instanceof org.bukkit.entity.Item i && i.getPersistentDataContainer().has(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE)) {
+                    tempItem = i;
+                    break;
+                }
+            }
         }
         
-        if (tempDisplay == null) return;
-        final ItemDisplay display = tempDisplay;
+        if (tempItem == null) return;
+        final org.bukkit.entity.Item targetItem = tempItem;
         final org.bukkit.entity.Interaction finalInteraction = interaction;
 
-        Long unsealTime = display.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
+        Long unsealTime = targetItem.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
         if (unsealTime != null && unsealTime > 0) {
             player.sendMessage("§c[RelicWars] 아직 유물의 봉인이 풀리지 않았습니다!");
             return;
@@ -213,14 +203,14 @@ public class SealedRelicManager implements Manager, Listener {
             int ticks = 0;
             @Override
             public void run() {
-                if (!player.isOnline() || !display.isValid() || plugin.getCombatManager().isDowned(player)) {
+                if (!player.isOnline() || !targetItem.isValid() || plugin.getCombatManager().isDowned(player)) {
                     pickupTasks.remove(player.getUniqueId()).cancel();
                     player.sendActionBar(Component.text("§c유물 줍기 취소됨"));
                     return;
                 }
 
                 // 이동 체크 (너무 멀어지면 취소)
-                if (player.getLocation().distanceSquared(startLoc) > 2.0 || player.getLocation().distanceSquared(display.getLocation()) > 16.0) {
+                if (player.getLocation().distanceSquared(startLoc) > 2.0 || player.getLocation().distanceSquared(targetItem.getLocation()) > 16.0) {
                     pickupTasks.remove(player.getUniqueId()).cancel();
                     player.sendActionBar(Component.text("§c유물 줍기 취소됨 (너무 많이 움직였습니다)"));
                     return;
@@ -248,25 +238,28 @@ public class SealedRelicManager implements Manager, Listener {
                 if (ticks >= requiredTicks) {
                     pickupTasks.remove(player.getUniqueId()).cancel();
 
-                    ItemStack relic = display.getItemStack();
-                    if (relic == null) return;
-
+                    // 줍기 성공!
+                    ItemStack pickedUpRelic = targetItem.getItemStack();
+                    int relicNum = RelicItemUtil.getRelicNumber(pickedUpRelic);
+                    
                     if (plugin.getRelicManager().countPlayerRelics(player) >= plugin.getConfigManager().getMaxRelicsPerPlayer()) {
                         player.sendMessage("§c[RelicWars] 유물 소지 한도를 초과했습니다.");
                         return;
                     }
 
-                    player.getInventory().addItem(relic);
-                    RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
+                    player.getInventory().addItem(pickedUpRelic);
+                    RelicDefinition def = RelicDefinition.getByNumber(relicNum);
                     if (def != null) {
                         player.sendMessage("§a[RelicWars] " + def.getDisplayName() + " §a유물을 획득했습니다!");
                         player.sendActionBar(Component.text("§a유물 획득 완료!"));
                         Bukkit.broadcast(Component.text("§e[소문] 누군가 " + def.getTierColor() + def.getName() + " §e유물의 봉인을 풀었습니다!"));
                     }
 
-                    cancelTask(display.getUniqueId());
+                    targetItem.remove();
                     finalInteraction.remove();
-                    display.remove();
+
+                    // DB 업데이트: 소지 상태로 변경
+                    plugin.getDatabaseManager().updateRelicState(relicNum, "held", player.getUniqueId().toString(), player.getLocation());
                 }
             }
         }, 0L, 1L);
@@ -277,36 +270,20 @@ public class SealedRelicManager implements Manager, Listener {
     // ======================== 능력 연동 API ========================
 
     /**
-     * 활성 봉인 유물의 ItemDisplay 목록을 반환합니다.
+     * 주변에 있는 봉인된 유물(Item엔티티)을 찾는 유틸
      */
-    public List<ItemDisplay> getActiveSealedRelics() {
-        List<ItemDisplay> result = new ArrayList<>();
-        for (UUID id : unsealTasks.keySet()) {
-            for (org.bukkit.World world : Bukkit.getWorlds()) {
-                org.bukkit.entity.Entity entity = world.getEntity(id);
-                if (entity instanceof ItemDisplay display && display.isValid()) {
-                    result.add(display);
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * 특정 위치에서 가장 가까운 봉인 유물을 반환합니다.
-     * @param loc 기준 위치
-     * @param maxRange 최대 검색 범위 (블록)
-     * @return 가장 가까운 봉인 ItemDisplay, 없으면 null
-     */
-    public ItemDisplay getNearestSealed(Location loc, double maxRange) {
-        ItemDisplay nearest = null;
+    private org.bukkit.entity.Item getNearestSealed(Location loc, double radius) {
+        org.bukkit.entity.Item nearest = null;
         double minDist = Double.MAX_VALUE;
-        for (ItemDisplay display : getActiveSealedRelics()) {
-            if (!display.getWorld().equals(loc.getWorld())) continue;
-            double dist = display.getLocation().distance(loc);
-            if (dist <= maxRange && dist < minDist) {
-                minDist = dist;
-                nearest = display;
+        for (org.bukkit.entity.Entity e : loc.getWorld().getNearbyEntities(loc, radius, radius, radius)) {
+            if (e instanceof org.bukkit.entity.Item item) {
+                if (item.getPersistentDataContainer().has(RelicItemUtil.KEY_IS_RELIC, PersistentDataType.BYTE)) {
+                    double dist = e.getLocation().distanceSquared(loc);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        nearest = item;
+                    }
+                }
             }
         }
         return nearest;
