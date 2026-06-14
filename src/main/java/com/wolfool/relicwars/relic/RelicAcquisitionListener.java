@@ -86,15 +86,19 @@ public class RelicAcquisitionListener implements Listener {
         if ("unspawned".equals(state)) {
             RelicDefinition def = RelicDefinition.getByNumber(relicNum);
             if (def != null) {
-                // 이미 스폰되었다고 DB에 업데이트 (중복 드랍 방지)
-                plugin.getDatabaseManager().updateRelicState(relicNum, "dropped", null, loc);
+                // 이미 스폰되었다고 DB에 업데이트 (소지 중 상태로)
+                plugin.getDatabaseManager().updateRelicState(relicNum, "held", achiever.getUniqueId().toString(), achiever.getLocation());
                 
                 ItemStack relic = RelicItemUtil.createRelicItem(def);
-                // 기믹을 달성한 사람에게 10초 봉인 상태로 드랍
-                plugin.getSealedRelicManager().spawnSealedRelic(loc, relic, 10);
+                
+                // 인벤토리에 지급 (공간이 없으면 바닥에 일반 드랍)
+                java.util.HashMap<Integer, ItemStack> leftOver = achiever.getInventory().addItem(relic);
+                if (!leftOver.isEmpty()) {
+                    achiever.getWorld().dropItem(achiever.getLocation(), leftOver.get(0));
+                }
                 
                 Bukkit.broadcast(net.kyori.adventure.text.Component.text("§e[소문] §f누군가 특별한 조건을 달성하여 " + def.getTierColor() + def.getName() + "§f 유물이 세상에 모습을 드러냈습니다!"));
-                achiever.sendMessage("§a[RelicWars] 기믹 달성! 당신의 발 밑에 유물이 봉인된 채로 소환되었습니다.");
+                achiever.sendMessage("§a[RelicWars] 기믹 달성! 인벤토리에 유물이 지급되었습니다.");
             }
         }
     }
