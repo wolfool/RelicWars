@@ -37,6 +37,9 @@ public class SealedRelicManager implements Manager, Listener {
     // 플레이어 UUID -> 줍기 캐스팅 태스크
     private final Map<UUID, BukkitTask> pickupTasks = new HashMap<>();
 
+    // 자가 치유(Self-healing)를 위한 추적용 셋
+    private final java.util.Set<org.bukkit.entity.Item> activeRelics = new java.util.HashSet<>();
+
     public SealedRelicManager(RelicWars plugin) {
         this.plugin = plugin;
     }
@@ -44,10 +47,33 @@ public class SealedRelicManager implements Manager, Listener {
     @Override
     public void initialize() {
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        
         // 서버 시작 시 잔여 엔티티 정리 후 DB에서 복구
         cleanupOrphanEntities();
         loadSealedRelicsFromDB();
+
+        // 5초 주기로 봉인 유물 증발(파괴) 자가 치유 검사
+        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            java.util.Iterator<org.bukkit.entity.Item> it = activeRelics.iterator();
+            while (it.hasNext()) {
+                org.bukkit.entity.Item item = it.next();
+                if (!item.isValid()) {
+                    int relicNum = RelicItemUtil.getRelicNumber(item.getItemStack());
+                    if (relicNum > 0 && "sealed".equals(plugin.getDatabaseManager().getRelicState(relicNum))) {
+                        plugin.getLogger().warning("§e[RelicWars] 비정상적으로 파괴된 봉인 유물 복구 중: #" + relicNum);
+                        Location loc = item.getLocation();
+                        if (loc.getY() < loc.getWorld().getMinHeight()) loc.setY(loc.getWorld().getMinHeight() + 1);
+                        ItemStack stack = item.getItemStack();
+                        Long until = item.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
+                        int sealTime = 0;
+                        if (until != null && until > System.currentTimeMillis()) {
+                            sealTime = (int)((until - System.currentTimeMillis()) / 1000L);
+                        }
+                        spawnSealedRelic(loc, stack, sealTime);
+                    }
+                    it.remove();
+                }
+            }
+        }, 100L, 100L);
         
         plugin.getLogger().info("§a[RelicWars] SealedRelicManager 초기화 완료.");
     }
@@ -168,6 +194,7 @@ public class SealedRelicManager implements Manager, Listener {
         // DB에 상태 반영
         plugin.getDatabaseManager().updateRelicState(RelicItemUtil.getRelicNumber(relic), "sealed", null, location);
 
+        activeRelics.add(itemEntity);
         startUnsealTimer(itemEntity, relic, sealSeconds);
     }
 

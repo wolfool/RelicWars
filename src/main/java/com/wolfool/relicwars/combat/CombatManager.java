@@ -111,7 +111,7 @@ public class CombatManager implements Manager {
             ItemStack bestRelic = plugin.getRelicManager().extractBestRelic(player);
             if (bestRelic != null) {
                 int sealTime = plugin.getConfigManager().getDownedDropSealSeconds();
-                plugin.getSealedRelicManager().spawnSealedRelic(player.getLocation(), bestRelic, sealTime);
+                plugin.getSealedRelicManager().spawnSealedRelic(getSafeDropLocation(player.getLocation()), bestRelic, sealTime);
                 int relicNum = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(bestRelic);
                 com.wolfool.relicwars.relic.RelicDefinition def = com.wolfool.relicwars.relic.RelicDefinition.getByNumber(relicNum);
                 String name = def != null ? def.getDisplayName() : "유물";
@@ -216,8 +216,8 @@ public class CombatManager implements Manager {
 
         int sealTime = plugin.getConfigManager().getDownedDropSealSeconds();
         for (ItemStack relic : stealDrops) {
-            Location dropLoc = victim.getLocation().clone().add(
-                    (Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
+            Location dropLoc = getSafeDropLocation(victim.getLocation().clone().add(
+                    (Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2));
             plugin.getSealedRelicManager().spawnSealedRelic(dropLoc, relic, sealTime);
         }
 
@@ -240,8 +240,8 @@ public class CombatManager implements Manager {
         if (!stealDrops.isEmpty()) {
             int sealTime = plugin.getConfigManager().getDeathDropSealSeconds();
             for (ItemStack relic : stealDrops) {
-                Location dropLoc = victim.getLocation().clone().add(
-                        (Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
+                Location dropLoc = getSafeDropLocation(victim.getLocation().clone().add(
+                        (Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2));
                 plugin.getSealedRelicManager().spawnSealedRelic(dropLoc, relic, sealTime);
             }
             victim.sendMessage("§c[RelicWars] 사망으로 인해 유물 " + stealDrops.size() + "개를 땅에 떨어뜨렸습니다!");
@@ -322,5 +322,25 @@ public class CombatManager implements Manager {
             
             combatTags.remove(player.getUniqueId());
         }
+    }
+
+    /**
+     * 보이드 추락 등으로 인해 유물이 유실되는 것을 막기 위한 안전 드랍 좌표 계산
+     */
+    public Location getSafeDropLocation(Location loc) {
+        org.bukkit.World world = loc.getWorld();
+        if (world == null) return loc;
+
+        // 고도가 너무 낮으면(보이드)
+        if (loc.getY() < world.getMinHeight() + 5) {
+            int highest = world.getHighestBlockYAt(loc);
+            if (highest <= world.getMinHeight()) {
+                // 엔드 등에서 그 칸에 블록이 전혀 없다면, 임의의 공중(y=100)으로 올려서 띄움
+                loc.setY(100);
+            } else {
+                loc.setY(highest + 1);
+            }
+        }
+        return loc;
     }
 }

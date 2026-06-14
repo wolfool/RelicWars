@@ -93,6 +93,12 @@ public class CombatListener implements Listener {
 
         // 이미 다운된 상태라면
         if (combatManager.isDowned(player)) {
+            // 보이드(공허) 추락 시 다운 상태 무시하고 즉시 사망 처리
+            if (event.getCause() == EntityDamageEvent.DamageCause.VOID) {
+                event.setCancelled(true);
+                combatManager.killPlayer(player, null);
+                return;
+            }
             handleDownedDamage(event, player);
             return;
         }
@@ -109,6 +115,13 @@ public class CombatListener implements Listener {
 
         // 다운되지 않은 상태에서 체력이 0 이하로 내려갈 데미지를 받았다면
         if (player.getHealth() - event.getFinalDamage() <= 0) {
+            // 보이드 데미지일 경우 불멸의 심장, 다운 모두 무시하고 즉사
+            if (event.getCause() == EntityDamageEvent.DamageCause.VOID) {
+                event.setCancelled(true);
+                combatManager.killPlayer(player, null);
+                return;
+            }
+
             // #005 불멸의 심장 패시브 발동 체크
             org.bukkit.inventory.ItemStack heartRelic = null;
             for (org.bukkit.inventory.ItemStack item : player.getInventory().getContents()) {
