@@ -84,9 +84,6 @@ public class RelicItemUtil {
         pdc.set(KEY_IS_RELIC, PersistentDataType.BYTE, (byte) 1);
         pdc.set(KEY_RELIC_NUMBER, PersistentDataType.INTEGER, definition.getNumber());
         pdc.set(KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 0L); // 쿨타임 없음
-        
-        // --- CustomModelData ---
-        meta.setCustomModelData(10000 + definition.getNumber());
 
         item.setItemMeta(meta);
         return item;
