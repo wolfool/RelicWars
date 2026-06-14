@@ -112,36 +112,37 @@ public class RelicManager implements Manager {
     // ======================== 드랍 로직 ========================
 
     /**
-     * 다운 시 드랍: 소유 개수에 따라 config에서 설정된 개수만큼 드랍.
-     * 높은 번호(약한 유물)부터 드랍합니다.
-     * @return 드랍된 유물 아이템 목록
+     * [1단계] 다운 시 즉시 드랍: 가장 낮은 번호(최강) 유물 1개를 드랍합니다.
+     * @return 드랍된 유물 아이템, 유물이 없으면 null
      */
-    public List<ItemStack> extractDownedDrop(Player player) {
+    public ItemStack extractBestRelic(Player player) {
         List<ItemStack> relics = getPlayerRelics(player);
-        if (relics.isEmpty()) return Collections.emptyList();
+        if (relics.isEmpty()) return null;
 
-        int dropCount = plugin.getConfigManager().getDownedDropCount(relics.size());
-        if (dropCount <= 0) return Collections.emptyList();
+        // 가장 낮은 번호 (최강) 유물 찾기
+        ItemStack bestRelic = null;
+        int lowestNumber = Integer.MAX_VALUE;
 
-        // 번호 높은 순(가장 약한)으로 정렬
-        relics.sort((a, b) -> Integer.compare(
-                RelicItemUtil.getRelicNumber(b),
-                RelicItemUtil.getRelicNumber(a)));
-
-        List<ItemStack> dropped = new ArrayList<>();
-        for (int i = 0; i < dropCount && i < relics.size(); i++) {
-            ItemStack item = relics.get(i);
-            player.getInventory().remove(item);
-            dropped.add(item);
+        for (ItemStack item : relics) {
+            int num = RelicItemUtil.getRelicNumber(item);
+            if (num < lowestNumber) {
+                lowestNumber = num;
+                bestRelic = item;
+            }
         }
-        return dropped;
+
+        if (bestRelic != null) {
+            player.getInventory().remove(bestRelic);
+        }
+        return bestRelic;
     }
 
     /**
-     * 확킬/자결 시 드랍: 다운 드랍과 동일 로직 (이미 다운 시 드랍된 것 제외하고 남은 것에서 추가 드랍).
+     * [2단계] 강탈(Steal) 드랍: 소유 개수에 따라 config의 steal-drop-rules 기준으로
+     * 가장 높은 번호(약한) 유물들을 드랍합니다.
      * @return 드랍된 유물 아이템 목록
      */
-    public List<ItemStack> extractDeathDrop(Player player) {
+    public List<ItemStack> extractStealDrop(Player player) {
         List<ItemStack> relics = getPlayerRelics(player);
         if (relics.isEmpty()) return Collections.emptyList();
 

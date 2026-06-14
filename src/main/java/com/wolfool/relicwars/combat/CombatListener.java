@@ -82,17 +82,34 @@ public class CombatListener implements Listener {
         // 확킬 판정: 오직 플레이어의 근접 타격만 허용
         if (event instanceof EntityDamageByEntityEvent byEntityEvent) {
             if (byEntityEvent.getDamager() instanceof Player attacker) {
-                // 팀킬 확인 (Phase 3 에서는 임시로 false로 가정. 추후 TeamManager 연동)
-                // if (teamManager.isSameTeam(attacker, victim) && !friendlyFire) { event.setCancelled(true); return; }
-
                 event.setCancelled(true); // 데미지는 입지 않고 횟수만 차감
                 combatManager.addExecuteHit(victim, attacker);
             } else {
-                event.setCancelled(true); // 몬스터가 때린 건 무시
+                event.setCancelled(true); // 몬스터 공격 무시
             }
         } else {
-            event.setCancelled(true); // 플레이어 공격이 아닌 다른 데미지 무시
+            event.setCancelled(true); // 다른 데미지 무시
         }
+    }
+
+    // ======================== 강탈 인터랙션 ========================
+
+    /**
+     * 다운된 적을 웅크린+우클릭하면 강탈 시도
+     */
+    @EventHandler
+    public void onPlayerInteractEntity(org.bukkit.event.player.PlayerInteractEntityEvent event) {
+        if (!(event.getRightClicked() instanceof Player target)) return;
+        Player stealer = event.getPlayer();
+
+        if (!combatManager.isDowned(target)) return;
+        if (!stealer.isSneaking()) return;
+
+        // 같은 팀이면 강탈 불가 (팀 시스템 구현 시 연동 예정)
+        // if (teamManager.isSameTeam(stealer, target)) return;
+
+        event.setCancelled(true);
+        combatManager.stealRelics(target, stealer);
     }
 
     // ======================== 다운 상태 제약 ========================
@@ -229,8 +246,8 @@ public class CombatListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
         if (combatManager.isDowned(player)) {
-            // 다운 상태에서 나가면 즉시 처형(자결) 처리
-            combatManager.suicide(player);
+            // 다운 상태에서 나가면 즉시 사망 처리
+            combatManager.killPlayer(player, null);
         }
     }
 

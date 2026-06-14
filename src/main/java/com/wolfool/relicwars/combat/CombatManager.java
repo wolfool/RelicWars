@@ -17,7 +17,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 플레이어의 전투 상태(다운, 확킬, 2초 무적, 구조 등)를 관리합니다.
+ * 플레이어의 전투 상태(다운, 확킬, 강탈, 구조 등)를 관리합니다.
+ * - 다운: 가장 좋은 유물 1개 즉시 드랍
+ * - 확킬: 다운된 적을 때려서 죽임 (추가 유물 드랍 없음)
+ * - 강탈: 다운된 적에게 인터랙션하여 유물을 뺏음 (steal-drop-rules)
+ * - 구조: 다운된 팀원을 살림
  */
 public class CombatManager implements Manager {
 
@@ -81,19 +85,20 @@ public class CombatManager implements Manager {
         // === 다운 이펙트 ===
         com.wolfool.relicwars.relic.InteractionEffects.playDownEffect(player);
 
-        // --- 유물 자동 드랍 (소유 개수 기반) ---
+        // --- 다운 시 가장 좋은(번호 낮은) 유물 1개 즉시 드랍 ---
         if (plugin.getConfigManager().isDropRelicOnDowned()) {
-            java.util.List<ItemStack> droppedRelics = plugin.getRelicManager().extractDownedDrop(player);
-            if (!droppedRelics.isEmpty()) {
+            ItemStack bestRelic = plugin.getRelicManager().extractBestRelic(player);
+            if (bestRelic != null) {
                 int sealTime = plugin.getConfigManager().getDownedDropSealSeconds();
-                for (ItemStack relic : droppedRelics) {
-                    plugin.getSealedRelicManager().spawnSealedRelic(player.getLocation(), relic, sealTime);
-                }
-                player.sendMessage("§c[RelicWars] 다운되며 유물 " + droppedRelics.size() + "개를 떨어뜨렸습니다!");
+                plugin.getSealedRelicManager().spawnSealedRelic(player.getLocation(), bestRelic, sealTime);
+                int relicNum = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(bestRelic);
+                com.wolfool.relicwars.relic.RelicDefinition def = com.wolfool.relicwars.relic.RelicDefinition.getByNumber(relicNum);
+                String name = def != null ? def.getDisplayName() : "유물";
+                player.sendMessage("§c[RelicWars] 다운되며 " + name + " §c유물을 떨어뜨렸습니다!");
             }
         }
 
-        // --- 자동 확킬 카운트다운 타이머 ---
+        // --- 자동 사망 카운트다운 타이머 ---
         int autoExecuteSeconds = plugin.getConfigManager().getDownedAutoExecuteSeconds();
         if (autoExecuteSeconds > 0) {
             org.bukkit.scheduler.BukkitTask autoTask = Bukkit.getScheduler().runTaskTimer(plugin, new Runnable() {
@@ -101,37 +106,33 @@ public class CombatManager implements Manager {
                 @Override
                 public void run() {
                     if (!isDowned(player) || !player.isOnline()) {
-                        // 구조되었거나 로그아웃 → 타이머 취소
                         org.bukkit.scheduler.BukkitTask task = autoExecuteTasks.remove(player.getUniqueId());
                         if (task != null) task.cancel();
                         return;
                     }
 
                     if (timeLeft <= 0) {
-                        // 시간 초과 → 확킬
                         org.bukkit.scheduler.BukkitTask task = autoExecuteTasks.remove(player.getUniqueId());
                         if (task != null) task.cancel();
                         player.sendMessage("§c[RelicWars] 구조받지 못해 사망했습니다...");
                         Bukkit.broadcast(Component.text("§c[RelicWars] §f" + player.getName() + "§c님이 구조받지 못해 사망했습니다."));
                         com.wolfool.relicwars.relic.InteractionEffects.playAutoExecuteEffect(player);
-                        executePlayer(player, null);
+                        killPlayer(player, null);
                         return;
                     }
 
-                    // 카운트다운 액션바 표시
                     String color = timeLeft <= 10 ? "§c" : timeLeft <= 30 ? "§e" : "§a";
                     String heartbeat = timeLeft <= 10 ? " §4§l❤" : "";
-                    player.sendActionBar(Component.text(color + "§l확킬까지 " + timeLeft + "초" + heartbeat));
+                    player.sendActionBar(Component.text(color + "§l사망까지 " + timeLeft + "초" + heartbeat));
 
-                    // 10초 이하일 때 심장박동 사운드
                     if (timeLeft <= 10) {
-                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_WARDEN_HEARTBEAT, 
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_WARDEN_HEARTBEAT,
                                 org.bukkit.SoundCategory.PLAYERS, 0.8f, 1.0f + (10 - timeLeft) * 0.05f);
                     }
 
                     timeLeft--;
                 }
-            }, 0L, 20L); // 매 1초(20틱)마다
+            }, 0L, 20L);
             autoExecuteTasks.put(player.getUniqueId(), autoTask);
         }
     }
@@ -150,7 +151,7 @@ public class CombatManager implements Manager {
 
     /**
      * 다운된 유저에게 확킬 타격을 1회 추가합니다.
-     * 5타가 누적되면 진짜 사망 처리합니다.
+     * 필요 횟수 누적 시 사망 처리 (유물 추가 드랍 없음).
      */
     public void addExecuteHit(Player victim, Player attacker) {
         if (!isDowned(victim) || isInvincible(victim)) return;
@@ -163,55 +164,56 @@ public class CombatManager implements Manager {
         attacker.sendMessage("§e[RelicWars] 처형 타격 적중! (" + currentHits + "/" + requiredHits + ")");
 
         if (currentHits >= requiredHits) {
-            executePlayer(victim, attacker);
+            killPlayer(victim, attacker);
         }
     }
 
+    // ======================== 강탈 (Steal) ========================
+
     /**
-     * 유저를 완전히 죽이고, 비례하여 유물을 바닥에 드랍시킵니다.
+     * 다운된 적의 유물을 강탈합니다.
+     * steal-drop-rules config에 따라 가장 높은 번호(약한) 유물부터 드랍됩니다.
+     * @return 강탈된 유물 개수
      */
-    public void executePlayer(Player victim, Player attacker) {
-        // 1. 유물 드랍 (비례)
-        List<ItemStack> drops = plugin.getRelicManager().extractDeathDrop(victim);
-        int sealTime = plugin.getConfigManager().getDeathDropSealSeconds();
-        for (ItemStack drop : drops) {
-            // 주변에 흩뿌리기
+    public int stealRelics(Player victim, Player stealer) {
+        if (!isDowned(victim) || isInvincible(victim)) return 0;
+
+        List<ItemStack> stealDrops = plugin.getRelicManager().extractStealDrop(victim);
+        if (stealDrops.isEmpty()) {
+            stealer.sendMessage("§7[RelicWars] 이 플레이어에게는 강탈할 유물이 없습니다.");
+            return 0;
+        }
+
+        int sealTime = plugin.getConfigManager().getDownedDropSealSeconds();
+        for (ItemStack relic : stealDrops) {
             Location dropLoc = victim.getLocation().clone().add(
                     (Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
-            plugin.getSealedRelicManager().spawnSealedRelic(dropLoc, drop, sealTime);
+            plugin.getSealedRelicManager().spawnSealedRelic(dropLoc, relic, sealTime);
         }
 
-        // 2. 바닐라 아이템 드랍 방지 (keepInventory) 및 부활 처리 유도
-        if (plugin.getConfigManager().isKeepInventoryOnDeath()) {
-            // KeepInventory 룰에 따라 인벤토리를 유지한 채로 리스폰
-            // 실제 데스 이벤트를 캔슬할 수는 없으므로, 체력을 0으로 만들어 바닐라 사망을 유도합니다.
-            // (CombatListener에서 KeepInventory 이벤트 처리 예정)
-            victim.setHealth(0.0);
-        } else {
-            victim.setHealth(0.0);
-        }
+        victim.sendMessage("§c[RelicWars] 유물 " + stealDrops.size() + "개를 강탈당했습니다!");
+        stealer.sendMessage("§a[RelicWars] 유물 " + stealDrops.size() + "개를 강탈했습니다!");
+        Bukkit.broadcast(Component.text("§e[소문] §f" + stealer.getName() + "§e이(가) §f" + victim.getName() + "§e에게서 유물 " + stealDrops.size() + "개를 강탈했습니다!"));
 
+        com.wolfool.relicwars.relic.InteractionEffects.playExecuteEffect(victim, stealer);
+        return stealDrops.size();
+    }
+
+    // ======================== 사망 처리 ========================
+
+    /**
+     * 유저를 사망시키고 스폰으로 보냅니다. (유물 추가 드랍 없음)
+     */
+    public void killPlayer(Player victim, Player attacker) {
         clearDownedState(victim);
+        victim.setHealth(0.0);
 
         if (attacker != null) {
             Bukkit.broadcast(Component.text("§c[RelicWars] §f" + victim.getName() + "§c님이 §f" + attacker.getName() + "§c님에게 처형당했습니다!"));
         } else {
-            Bukkit.broadcast(Component.text("§c[RelicWars] §f" + victim.getName() + "§c님이 처형당했습니다!"));
+            Bukkit.broadcast(Component.text("§c[RelicWars] §f" + victim.getName() + "§c님이 사망했습니다."));
         }
-
-        // === 확킬 이펙트 ===
         com.wolfool.relicwars.relic.InteractionEffects.playExecuteEffect(victim, attacker);
-    }
-
-    /**
-     * 자결 처리 (명령어 등에서 호출)
-     */
-    public void suicide(Player player) {
-        if (!isDowned(player)) {
-            player.sendMessage("§c[RelicWars] 다운 상태에서만 자결할 수 있습니다.");
-            return;
-        }
-        executePlayer(player, null);
     }
 
     // ======================== 구조 (부활) ========================
