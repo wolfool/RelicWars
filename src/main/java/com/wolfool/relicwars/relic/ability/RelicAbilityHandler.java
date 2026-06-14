@@ -429,11 +429,11 @@ public class RelicAbilityHandler {
 
     public void execute020Option2(Player player) {
         player.sendMessage("§d[소문의 등불] §f현재 바닥에 봉인된 유물을 스캔합니다...");
-        java.util.List<org.bukkit.entity.ItemDisplay> sealed = plugin.getSealedRelicManager().getActiveSealedRelics();
+        java.util.List<org.bukkit.entity.Item> sealed = plugin.getSealedRelicManager().getActiveSealedRelics();
         if (sealed.isEmpty()) {
             player.sendMessage("§c  [봉인] 현재 서버 내에 봉인된 유물이 없습니다.");
         } else {
-            for (org.bukkit.entity.ItemDisplay display : sealed) {
+            for (org.bukkit.entity.Item display : sealed) {
                 Location loc = display.getLocation();
                 int rx = (int) (Math.round(loc.getBlockX() / 100.0) * 100);
                 int rz = (int) (Math.round(loc.getBlockZ() / 100.0) * 100);

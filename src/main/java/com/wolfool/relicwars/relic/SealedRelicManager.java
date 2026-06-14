@@ -270,9 +270,25 @@ public class SealedRelicManager implements Manager, Listener {
     // ======================== 능력 연동 API ========================
 
     /**
+     * 활성 봉인 유물의 Item 목록을 반환합니다.
+     */
+    public java.util.List<org.bukkit.entity.Item> getActiveSealedRelics() {
+        java.util.List<org.bukkit.entity.Item> result = new java.util.ArrayList<>();
+        for (UUID id : unsealTasks.keySet()) {
+            for (org.bukkit.World world : Bukkit.getWorlds()) {
+                org.bukkit.entity.Entity entity = world.getEntity(id);
+                if (entity instanceof org.bukkit.entity.Item item && item.isValid()) {
+                    result.add(item);
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
      * 주변에 있는 봉인된 유물(Item엔티티)을 찾는 유틸
      */
-    private org.bukkit.entity.Item getNearestSealed(Location loc, double radius) {
+    public org.bukkit.entity.Item getNearestSealed(Location loc, double radius) {
         org.bukkit.entity.Item nearest = null;
         double minDist = Double.MAX_VALUE;
         for (org.bukkit.entity.Entity e : loc.getWorld().getNearbyEntities(loc, radius, radius, radius)) {
@@ -292,31 +308,40 @@ public class SealedRelicManager implements Manager, Listener {
     /**
      * 봉인을 즉시 해제하여 획득 가능 상태로 만듭니다. (#009 파괴자의 서)
      */
-    public void forceUnseal(ItemDisplay display) {
-        cancelTask(display.getUniqueId());
-        ItemStack relic = display.getItemStack();
+    public void forceUnseal(org.bukkit.entity.Item targetItem) {
+        cancelTask(targetItem.getUniqueId());
+        ItemStack relic = targetItem.getItemStack();
         if (relic != null) {
             RelicDefinition def = RelicDefinition.getByNumber(RelicItemUtil.getRelicNumber(relic));
             if (def != null) {
-                display.customName(Component.text("§a[우클릭으로 획득] " + def.getTierColor() + def.getName()));
+                targetItem.customName(Component.text("§a[우클릭으로 획득] " + def.getTierColor() + def.getName()));
             }
         }
-        display.setGlowing(false);
-        display.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 0L);
+        targetItem.setGlowing(false);
+        targetItem.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 0L);
     }
 
     /**
-     * 봉인 시간을 절반으로 단축합니다. (#019 봉인의 바늘)
+     * 남은 봉인 시간을 절반으로 줄입니다. (#019 봉인의 바늘)
      */
-    public void halveSealTime(ItemDisplay display) {
-        Long unsealTime = display.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
-        if (unsealTime != null && unsealTime > 0) {
-            long now = System.currentTimeMillis();
-            long remaining = unsealTime - now;
-            if (remaining > 0) {
-                long halved = now + (remaining / 2);
-                display.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, halved);
-            }
-        }
+    public void reduceSealTime(org.bukkit.entity.Item targetItem, double ratio) {
+        BukkitTask task = unsealTasks.get(targetItem.getUniqueId());
+        if (task == null) return;
+        
+        Long currentUntil = targetItem.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
+        if (currentUntil == null || currentUntil == 0) return;
+
+        long now = System.currentTimeMillis();
+        long timeLeftMillis = currentUntil - now;
+        if (timeLeftMillis <= 0) return;
+
+        long newTimeLeftMillis = (long) (timeLeftMillis * ratio);
+        int newTimeLeftSeconds = (int) (newTimeLeftMillis / 1000L);
+        
+        targetItem.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, now + newTimeLeftMillis);
+        
+        // 태스크 재시작
+        cancelTask(targetItem.getUniqueId());
+        startUnsealTimer(targetItem, targetItem.getItemStack(), newTimeLeftSeconds);
     }
 }
