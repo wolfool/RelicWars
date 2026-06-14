@@ -167,6 +167,12 @@ public class SealedRelicManager implements Manager, Listener {
         // 다운된 유저는 주울 수 없음
         if (plugin.getCombatManager().isDowned(player)) return;
 
+        // #010 EMP 상태인 경우 주울 수 없음
+        if (plugin.getRelicAbilityHandler().active010EMP.contains(player.getUniqueId())) {
+            player.sendMessage("§c[EMP] 기능이 마비되어 유물을 주울 수 없습니다!");
+            return;
+        }
+
         org.bukkit.entity.Entity vehicle = interaction.getVehicle();
         org.bukkit.entity.Item tempItem = null;
         if (vehicle instanceof org.bukkit.entity.Item i) {

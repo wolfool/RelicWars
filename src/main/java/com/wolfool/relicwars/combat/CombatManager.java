@@ -74,6 +74,16 @@ public class CombatManager implements Manager {
         downedPlayers.put(player.getUniqueId(), System.currentTimeMillis());
         executeHits.put(player.getUniqueId(), 0);
 
+        // #017 왜곡의 닻 텔레포트 세이브
+        String teamId = plugin.getTeamManager().getTeamId(player);
+        String key = teamId != null ? teamId : player.getUniqueId().toString();
+        Location anchorLoc = plugin.getRelicAbilityHandler().active017Anchor.get(key);
+        if (anchorLoc != null && player.getLocation().distanceSquared(anchorLoc) <= 2500) { // 반경 50블록
+            player.teleport(anchorLoc);
+            player.sendMessage("§d[왜곡의 닻] 공간 왜곡장에 의해 안전한 위치로 대피했습니다!");
+            plugin.getRelicAbilityHandler().active017Anchor.remove(key); // 1회용 소모
+        }
+
         player.setHealth(20.0); // 다운 시 체력은 꽉 찬 상태로 유지 (시스템적 체력)
         player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, Integer.MAX_VALUE, 4, false, false, false));
         player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, Integer.MAX_VALUE, 250, false, false, false)); // 점프 불가

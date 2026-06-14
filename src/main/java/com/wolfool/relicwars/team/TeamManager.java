@@ -4,6 +4,8 @@ import com.wolfool.relicwars.RelicWars;
 import com.wolfool.relicwars.manager.Manager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
+import net.kyori.adventure.text.Component;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -11,10 +13,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
-/**
- * 듀오(2인) 팀 시스템 매니저.
- * DB와 연동하여 플레이어의 소속 팀을 관리합니다.
- */
 public class TeamManager implements Manager {
 
     private final RelicWars plugin;
@@ -24,6 +22,10 @@ public class TeamManager implements Manager {
     
     // Team ID -> List of Member UUIDs
     private final Map<String, List<UUID>> teamMembers = new HashMap<>();
+
+    // Target UUID -> Inviter UUID
+    private final Map<UUID, UUID> pendingInvites = new HashMap<>();
+    private final Map<UUID, BukkitTask> inviteTasks = new HashMap<>();
 
     public TeamManager(RelicWars plugin) {
         this.plugin = plugin;
@@ -37,7 +39,6 @@ public class TeamManager implements Manager {
 
     @Override
     public void shutdown() {
-        // 실시간 DB 저장이므로 별도 정리 생략
         plugin.getLogger().info("§a[RelicWars] TeamManager 종료.");
     }
 
@@ -53,7 +54,13 @@ public class TeamManager implements Manager {
                     UUID uuid = UUID.fromString(rs.getString("uuid"));
                     String teamId = rs.getString("team_id");
                     playerTeams.put(uuid, teamId);
-                    teamMembers.computeIfAbsent(teamId, k -> new ArrayList<>()).add(uuid);
+                    
+                    List<UUID> list = teamMembers.get(teamId);
+                    if (list == null) {
+                        list = new ArrayList<>();
+                        teamMembers.put(teamId, list);
+                    }
+                    list.add(uuid);
                 }
             }
         } catch (SQLException e) {
@@ -73,9 +80,6 @@ public class TeamManager implements Manager {
         return teamMembers.getOrDefault(teamId, Collections.emptyList());
     }
 
-    /**
-     * 특정 팀이 보유한 모든 유물의 개수 합계를 반환합니다.
-     */
     public int getTeamRelicCount(String teamId) {
         int total = 0;
         for (UUID memberUuid : getTeamMembers(teamId)) {
@@ -83,8 +87,6 @@ public class TeamManager implements Manager {
             if (p != null && p.isOnline()) {
                 total += plugin.getRelicManager().countPlayerRelics(p);
             } else {
-                // 오프라인 유저의 유물은 DB에서 가져와야 하지만, MVP에서는 온라인 유저 기준(또는 DB 조회)으로 처리
-                // 여기서는 간단히 DB 쿼리로 대체 가능하나 임시로 온라인 유저만 합산
                 total += countRelicsFromDB(memberUuid.toString());
             }
         }
@@ -113,28 +115,148 @@ public class TeamManager implements Manager {
         return t1 != null && t1.equals(t2);
     }
 
-    /**
-     * 두 플레이어를 새로운 팀으로 결성합니다.
-     */
-    public void createTeam(Player p1, Player p2) {
-        String teamId = UUID.randomUUID().toString().substring(0, 8);
+    public void invitePlayer(Player inviter, Player target) {
+        if (hasTeam(target)) {
+            inviter.sendMessage("§c[RelicWars] 상대방이 이미 팀에 속해 있습니다.");
+            return;
+        }
+
+        String teamId = getTeamId(inviter);
+        int currentMembers = teamId == null ? 1 : getTeamMembers(teamId).size();
+        if (currentMembers >= plugin.getConfigManager().getTeamMaxMembers()) {
+            inviter.sendMessage("§c[RelicWars] 팀의 최대 인원(" + plugin.getConfigManager().getTeamMaxMembers() + "명)을 초과할 수 없습니다.");
+            return;
+        }
+
+        int inviterRelics = teamId == null ? plugin.getRelicManager().countPlayerRelics(inviter) : getTeamRelicCount(teamId);
+        int targetRelics = plugin.getRelicManager().countPlayerRelics(target);
+        if (inviterRelics + targetRelics > plugin.getConfigManager().getTeamMaxTotalRelics()) {
+            inviter.sendMessage("§c[RelicWars] 팀 결성에 필요한 유물 합계 제한(" + plugin.getConfigManager().getTeamMaxTotalRelics() + "개)을 초과합니다.");
+            return;
+        }
+
+        if (pendingInvites.containsKey(target.getUniqueId())) {
+            inviter.sendMessage("§c[RelicWars] 상대방이 이미 다른 초대를 받고 있습니다.");
+            return;
+        }
+
+        pendingInvites.put(target.getUniqueId(), inviter.getUniqueId());
         
-        playerTeams.put(p1.getUniqueId(), teamId);
-        playerTeams.put(p2.getUniqueId(), teamId);
+        inviter.sendMessage("§a[RelicWars] " + target.getName() + "님에게 팀 초대를 보냈습니다.");
+        target.sendMessage("§a[RelicWars] " + inviter.getName() + "님으로부터 팀 초대가 도착했습니다!");
+        target.sendMessage("§a[RelicWars] 60초 내에 /team accept 명령어로 수락하세요.");
+
+        int expireSeconds = plugin.getConfigManager().getTeamInviteExpireSeconds();
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (pendingInvites.remove(target.getUniqueId()) != null) {
+                if (target.isOnline()) target.sendMessage("§c[RelicWars] 팀 초대가 만료되었습니다.");
+                if (inviter.isOnline()) inviter.sendMessage("§c[RelicWars] " + target.getName() + "님에 대한 팀 초대가 만료되었습니다.");
+            }
+        }, expireSeconds * 20L);
+        inviteTasks.put(target.getUniqueId(), task);
+    }
+
+    public void acceptInvite(Player target) {
+        UUID inviterUuid = pendingInvites.remove(target.getUniqueId());
+        BukkitTask task = inviteTasks.remove(target.getUniqueId());
+        if (task != null) task.cancel();
+
+        if (inviterUuid == null) {
+            target.sendMessage("§c[RelicWars] 받은 팀 초대가 없습니다.");
+            return;
+        }
+
+        Player inviter = Bukkit.getPlayer(inviterUuid);
+        if (inviter == null || !inviter.isOnline()) {
+            target.sendMessage("§c[RelicWars] 초대한 플레이어가 오프라인입니다.");
+            return;
+        }
+
+        if (hasTeam(target)) {
+            target.sendMessage("§c[RelicWars] 이미 팀에 속해 있습니다.");
+            return;
+        }
+
+        String teamId = getTeamId(inviter);
+        int currentMembers = teamId == null ? 1 : getTeamMembers(teamId).size();
+        if (currentMembers >= plugin.getConfigManager().getTeamMaxMembers()) {
+            target.sendMessage("§c[RelicWars] 초대한 사람의 팀이 가득 찼습니다.");
+            return;
+        }
+
+        int inviterRelics = teamId == null ? plugin.getRelicManager().countPlayerRelics(inviter) : getTeamRelicCount(teamId);
+        int targetRelics = plugin.getRelicManager().countPlayerRelics(target);
+        if (inviterRelics + targetRelics > plugin.getConfigManager().getTeamMaxTotalRelics()) {
+            target.sendMessage("§c[RelicWars] 팀 결성에 필요한 유물 합계 제한을 초과합니다.");
+            return;
+        }
+
+        if (teamId == null) {
+            // 새 팀 생성
+            teamId = UUID.randomUUID().toString().substring(0, 8);
+            playerTeams.put(inviter.getUniqueId(), teamId);
+            
+            List<UUID> list = new ArrayList<>();
+            list.add(inviter.getUniqueId());
+            teamMembers.put(teamId, list);
+            
+            saveTeamToDB(inviter.getUniqueId(), teamId);
+        }
+
+        playerTeams.put(target.getUniqueId(), teamId);
+        teamMembers.get(teamId).add(target.getUniqueId());
+        saveTeamToDB(target.getUniqueId(), teamId);
+
+        target.sendMessage("§a[RelicWars] " + inviter.getName() + "님의 팀에 가입했습니다!");
+        for (UUID member : getTeamMembers(teamId)) {
+            Player p = Bukkit.getPlayer(member);
+            if (p != null && p.isOnline() && !p.equals(target)) {
+                p.sendMessage("§a[RelicWars] " + target.getName() + "님이 팀에 가입했습니다!");
+            }
+        }
+    }
+
+    public void leaveTeam(Player player) {
+        String teamId = getTeamId(player);
+        if (teamId == null) {
+            player.sendMessage("§c[RelicWars] 소속된 팀이 없습니다.");
+            return;
+        }
+
+        playerTeams.remove(player.getUniqueId());
         
-        teamMembers.put(teamId, Arrays.asList(p1.getUniqueId(), p2.getUniqueId()));
+        List<UUID> members = teamMembers.get(teamId);
+        if (members != null) {
+            members.remove(player.getUniqueId());
+            if (members.size() <= 1) { // 1명 이하로 남으면 팀 폭파
+                for (UUID remaining : members) {
+                    playerTeams.remove(remaining);
+                    removeTeamFromDB(remaining);
+                    Player p = Bukkit.getPlayer(remaining);
+                    if (p != null && p.isOnline()) {
+                        p.sendMessage("§c[RelicWars] 팀원이 모두 떠나 팀이 해체되었습니다.");
+                    }
+                }
+                teamMembers.remove(teamId);
+            } else {
+                for (UUID remaining : members) {
+                    Player p = Bukkit.getPlayer(remaining);
+                    if (p != null && p.isOnline()) {
+                        p.sendMessage("§c[RelicWars] " + player.getName() + "님이 팀을 탈퇴했습니다.");
+                    }
+                }
+            }
+        }
         
-        saveTeamToDB(p1.getUniqueId(), teamId);
-        saveTeamToDB(p2.getUniqueId(), teamId);
+        removeTeamFromDB(player.getUniqueId());
+        player.sendMessage("§a[RelicWars] 팀에서 탈퇴했습니다.");
     }
 
     private void saveTeamToDB(UUID uuid, String teamId) {
-        // 백그라운드 스레드에서 저장 권장되지만, MVP이므로 동기/간단한 비동기로 처리
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             Connection conn = plugin.getDatabaseManager().getConnection();
             if (conn == null) return;
             try {
-                // 플레이어 데이터가 없을 수 있으므로 UPSERT
                 String query = """
                     INSERT INTO players (uuid, team_id) VALUES (?, ?)
                     ON CONFLICT(uuid) DO UPDATE SET team_id = excluded.team_id
@@ -150,14 +272,14 @@ public class TeamManager implements Manager {
         });
     }
 
-    private void removeTeamFromDB(String teamId) {
+    private void removeTeamFromDB(UUID uuid) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             Connection conn = plugin.getDatabaseManager().getConnection();
             if (conn == null) return;
             try {
-                String query = "DELETE FROM teams WHERE team_id = ?";
+                String query = "UPDATE players SET team_id = NULL WHERE uuid = ?";
                 try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                    pstmt.setString(1, teamId);
+                    pstmt.setString(1, uuid.toString());
                     pstmt.executeUpdate();
                 }
             } catch (SQLException e) {

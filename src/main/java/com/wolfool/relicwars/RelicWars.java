@@ -38,6 +38,7 @@ public final class RelicWars extends JavaPlugin {
     private RelicAbilityHandler relicAbilityHandler;
     private SanityManager sanityManager;
     private com.wolfool.relicwars.relic.RelicAcquisitionListener acquisitionListener;
+    private com.wolfool.relicwars.relic.FootprintTracker footprintTracker;
 
     /**
      * 플러그인 인스턴스를 반환합니다. (싱글톤)
@@ -91,6 +92,9 @@ public final class RelicWars extends JavaPlugin {
         sanityManager = new SanityManager(this);
         sanityManager.initialize();
 
+        footprintTracker = new com.wolfool.relicwars.relic.FootprintTracker(this);
+        footprintTracker.initialize();
+
         // --- 4. 이벤트/커맨드 등록 ---
         RelicCommand relicCommand = new RelicCommand(this);
         if (getCommand("relic") != null) {
@@ -105,6 +109,7 @@ public final class RelicWars extends JavaPlugin {
 
         acquisitionListener = new com.wolfool.relicwars.relic.RelicAcquisitionListener(this);
         getServer().getPluginManager().registerEvents(acquisitionListener, this);
+        getServer().getPluginManager().registerEvents(relicAbilityHandler, this);
 
         getLogger().info("§a============================================");
         getLogger().info("§a  RelicWars v" + getDescription().getVersion() + " 활성화 완료!");
@@ -115,6 +120,7 @@ public final class RelicWars extends JavaPlugin {
     public void onDisable() {
         // --- 매니저 종료 ---
         if (sanityManager != null) sanityManager.shutdown();
+        if (footprintTracker != null) footprintTracker.shutdown();
         if (endingManager != null) endingManager.shutdown();
         if (bossManager != null) bossManager.shutdown();
         if (teamManager != null) teamManager.shutdown();
@@ -158,5 +164,6 @@ public final class RelicWars extends JavaPlugin {
     public EndingManager getEndingManager() { return endingManager; }
     public RelicAbilityHandler getRelicAbilityHandler() { return relicAbilityHandler; }
     public SanityManager getSanityManager() { return sanityManager; }
+    public com.wolfool.relicwars.relic.FootprintTracker getFootprintTracker() { return footprintTracker; }
     public com.wolfool.relicwars.relic.RelicAcquisitionListener getAcquisitionListener() { return acquisitionListener; }
 }

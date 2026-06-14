@@ -44,6 +44,7 @@ public class ConfigManager {
 
     // --- 팀(Team) ---
     private int teamMaxMembers;
+    private int teamMaxTotalRelics;
     private int teamInviteExpireSeconds;
 
     // --- 이벤트(Event) ---
@@ -122,6 +123,7 @@ public class ConfigManager {
 
         // --- 팀 ---
         teamMaxMembers = config.getInt("team.max-members", 2);
+        teamMaxTotalRelics = config.getInt("team.max-total-relics-to-form", 8);
         teamInviteExpireSeconds = config.getInt("team.invite-expire-seconds", 60);
 
         // --- 이벤트 ---
@@ -183,6 +185,7 @@ public class ConfigManager {
 
     // --- 팀 ---
     public int getTeamMaxMembers() { return teamMaxMembers; }
+    public int getTeamMaxTotalRelics() { return teamMaxTotalRelics; }
     public int getTeamInviteExpireSeconds() { return teamInviteExpireSeconds; }
 
     // --- 이벤트 ---

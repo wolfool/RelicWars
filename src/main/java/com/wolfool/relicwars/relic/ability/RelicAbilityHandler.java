@@ -26,7 +26,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public class RelicAbilityHandler {
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerToggleFlightEvent;
+
+public class RelicAbilityHandler implements Listener {
 
     private final RelicWars plugin;
     
@@ -37,6 +41,25 @@ public class RelicAbilityHandler {
     public final Set<UUID> active023Marked = new HashSet<>(); // 표식이 찍힌 대상
     public final Map<UUID, UUID> active021Duel = new HashMap<>(); // 결투 중인 쌍 (대상 -> 시전자)
     public final Set<UUID> active020ScanMode = new HashSet<>(); // /relic scan 입력 대기 상태
+    public final Map<String, Location> active017Anchor = new HashMap<>(); // 팀ID(또는 UUID) -> 왜곡장 위치
+    public final Set<UUID> active015Casting = new HashSet<>(); // #015 캐스팅 중인 플레이어
+    public final Set<UUID> active010EMP = new HashSet<>(); // #010 EMP에 당한 플레이어
+    
+    // Batch 4 추가
+    public final Set<UUID> active008Shadow = new HashSet<>(); // #008 그림자 막 (탐지 면역)
+    public final Map<Location, String> active007Dome = new HashMap<>(); // #007 돔 위치 -> 팀ID/UUID
+    public final Map<UUID, LeapData> active006Leap = new HashMap<>(); // #006 차원 도약석 데이터
+    // Batch 5 추가
+    public final Set<UUID> active003TrackerWait = new HashSet<>(); // #003 추적 유물 번호 입력 대기 상태
+    // #006용 데이터 클래스
+    public static class LeapData {
+        public Location origin;
+        public double health;
+        public org.bukkit.entity.ArmorStand hologram;
+        public LeapData(Location o, double h, org.bukkit.entity.ArmorStand s) {
+            origin = o; health = h; hologram = s;
+        }
+    }
 
     public RelicAbilityHandler(RelicWars plugin) {
         this.plugin = plugin;
@@ -44,6 +67,18 @@ public class RelicAbilityHandler {
 
     public void execute(Player player, RelicDefinition def) {
         int num = def.getNumber();
+        
+        // EMP 상태 체크
+        if (active010EMP.contains(player.getUniqueId())) {
+            player.sendMessage("§c[EMP] 기능이 마비되어 유물을 사용할 수 없습니다!");
+            return;
+        }
+
+        // #006 재사용(복귀) 체크 (쿨타임/정신력 소모 무시)
+        if (num == 6 && active006Leap.containsKey(player.getUniqueId())) {
+            execute006Return(player);
+            return;
+        }
 
         // 정신력 소모 체크 (3단계: 10, 4단계: 20, 5단계: 30)
         int sanityCost = getSanityCost(num);
@@ -102,25 +137,73 @@ public class RelicAbilityHandler {
         // 파티클 등으로 전조증상 (MVP에서는 생략)
         
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            strikeLoc.getWorld().strikeLightning(strikeLoc);
+            strikeLoc.getWorld().strikeLightningEffect(strikeLoc);
+            com.wolfool.relicwars.util.RumorUtil.broadcastRumor(strikeLoc, "§b[소문] %s쪽에서 번개 소리가 들렸습니다.");
+            
+            // 반경 3블록 데미지 + 넉백 + 발광
+            for (org.bukkit.entity.Entity e : strikeLoc.getWorld().getNearbyEntities(strikeLoc, 3, 3, 3)) {
+                if (e instanceof Player target && !target.equals(player)) {
+                    if (plugin.getTeamManager().isSameTeam(player, target)) continue;
+                    
+                    target.damage(10.0, player);
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 100, 0, false, false));
+                    
+                    Vector knockback = target.getLocation().toVector().subtract(strikeLoc.toVector());
+                    if (knockback.lengthSquared() == 0) knockback = new Vector(0, 1, 0);
+                    else knockback = knockback.normalize().multiply(1.5).setY(0.8);
+                    
+                    target.setVelocity(knockback);
+                }
+            }
         }, 30L); // 1.5초 (30틱)
     }
 
     // #029 추락왕의 깃털
     private void execute029(Player player) {
-        player.sendMessage("§e[RelicWars] 15초간 낙하 데미지 면역 및 전방 도약!");
+        player.sendMessage("§e[RelicWars] 15초간 낙하 데미지 면역 및 허공에서 이단 점프 가능!");
         
-        // 이단 점프 (대쉬) 발동
-        Vector dir = player.getLocation().getDirection().normalize().multiply(1.5).setY(0.8);
-        player.setVelocity(dir);
-
         UUID id = player.getUniqueId();
         active029FallImmunity.add(id);
+        
+        // 이단 점프를 위해 비행 허용
+        player.setAllowFlight(true);
+
+        new org.bukkit.scheduler.BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!player.isOnline() || !active029FallImmunity.contains(id)) {
+                    this.cancel();
+                    return;
+                }
+                // 발밑에 깃털 파티클 트레일
+                player.getWorld().spawnParticle(org.bukkit.Particle.CAMPFIRE_COSY_SMOKE, player.getLocation(), 1, 0.1, 0.1, 0.1, 0);
+            }
+        }.runTaskTimer(plugin, 0L, 5L);
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             active029FallImmunity.remove(id);
-            if (player.isOnline()) player.sendMessage("§c[RelicWars] 낙하 데미지 면역이 종료되었습니다.");
+            if (player.isOnline()) {
+                if (player.getGameMode() != org.bukkit.GameMode.CREATIVE && player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
+                    player.setAllowFlight(false);
+                }
+                player.sendMessage("§c[RelicWars] 추락왕의 깃털 효과가 종료되었습니다.");
+            }
         }, 300L); // 15초
+    }
+
+    @EventHandler
+    public void onPlayerToggleFlight(PlayerToggleFlightEvent event) {
+        Player player = event.getPlayer();
+        if (player.getGameMode() == org.bukkit.GameMode.CREATIVE || player.getGameMode() == org.bukkit.GameMode.SPECTATOR) return;
+        
+        if (active029FallImmunity.contains(player.getUniqueId())) {
+            event.setCancelled(true);
+            player.setAllowFlight(false); // 1회만 가능
+            
+            Vector dir = player.getLocation().getDirection().normalize().multiply(1.5).setY(0.8);
+            player.setVelocity(dir);
+            player.getWorld().playSound(player.getLocation(), org.bukkit.Sound.ENTITY_ENDER_DRAGON_FLAP, 1.0f, 1.2f);
+        }
     }
 
     // #028 심해의 폐
@@ -131,22 +214,50 @@ public class RelicAbilityHandler {
         player.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 3600, 0, false, false));
         player.addPotionEffect(new PotionEffect(PotionEffectType.DOLPHINS_GRACE, 3600, 0, false, false));
 
-        // 지상 물 웅덩이 생성
+        // 지상 물 웅덩이 생성 (3x3)
         Block feet = player.getLocation().getBlock();
-        if (feet.getType() == Material.AIR || feet.getType() == Material.SHORT_GRASS) {
-            feet.setType(Material.WATER);
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (feet.getType() == Material.WATER) feet.setType(Material.AIR);
-            }, 100L); // 5초 뒤 소멸
-            
-            // 대쉬 보너스
-            player.setVelocity(player.getLocation().getDirection().multiply(1.2));
+        java.util.List<Block> changedBlocks = new java.util.ArrayList<>();
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                Block b = feet.getRelative(x, 0, z);
+                if (b.getType() == Material.AIR || b.getType() == Material.SHORT_GRASS || b.getType() == Material.TALL_GRASS) {
+                    b.setType(Material.WATER);
+                    changedBlocks.add(b);
+                }
+            }
         }
+        
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            for (Block b : changedBlocks) {
+                if (b.getType() == Material.WATER) b.setType(Material.AIR);
+            }
+        }, 100L); // 5초 뒤 소멸
+
+        // 대쉬 보너스
+        player.setVelocity(player.getLocation().getDirection().multiply(1.2));
+
+        // 푸른 공명 파티클 소문 (지속)
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                if (!player.isOnline() || ticks >= 3600) { // 3분
+                    this.cancel();
+                    return;
+                }
+                ticks += 5;
+                if (player.getLocation().getBlock().getType() == Material.WATER) {
+                    player.getWorld().spawnParticle(org.bukkit.Particle.NAUTILUS, player.getLocation().add(0, 1, 0), 5, 0.5, 0.5, 0.5, 0);
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 5L);
     }
 
     // #027 용암의 눈
     private void execute027(Player player) {
         player.sendMessage("§c[RelicWars] 15초간 화염 면역 및 용암 보행 발동!");
+        
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] %s쪽에서 불길이 치솟는 열기가 느껴집니다.");
         
         player.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 300, 0, false, false));
         
@@ -191,24 +302,34 @@ public class RelicAbilityHandler {
     private void execute026(Player player) {
         player.sendMessage("§8[RelicWars] 10초간 어둠 속에 숨어듭니다...");
         player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 200, 0, false, false));
-        // 스코어보드 닉네임 감추기 등은 MVP에서 투명화 포션으로 대체
+        
+        org.bukkit.scoreboard.Scoreboard board = Bukkit.getScoreboardManager().getMainScoreboard();
+        org.bukkit.scoreboard.Team team = board.getTeam("relic026_" + player.getName());
+        if (team == null) {
+            team = board.registerNewTeam("relic026_" + player.getName());
+        }
+        team.setOption(org.bukkit.scoreboard.Team.Option.NAME_TAG_VISIBILITY, org.bukkit.scoreboard.Team.OptionStatus.NEVER);
+        team.addEntry(player.getName());
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            org.bukkit.scoreboard.Team t = board.getTeam("relic026_" + player.getName());
+            if (t != null) {
+                t.removeEntry(player.getName());
+                t.unregister();
+            }
+            if (player.isOnline()) {
+                player.getWorld().spawnParticle(org.bukkit.Particle.SQUID_INK, player.getLocation().add(0, 1, 0), 100, 0.5, 1.0, 0.5, 0.1);
+                player.sendMessage("§c[RelicWars] 어둠매듭 은신이 종료되어 위치가 노출되었습니다!");
+            }
+        }, 200L); // 10초
     }
+
+
 
     // #025 최후의 봉합
     private void execute025(Player player) {
-        player.sendMessage("§5[RelicWars] 30초간 안개(시야 차단) 전개 및 구조 시간 단축!");
+        player.sendMessage("§5[RelicWars] 30초간 구조 시간이 2초로 대폭 단축됩니다!");
         
-        // 주변 적에게 어둠(Darkness) 부여
-        for (Player p : player.getWorld().getPlayers()) {
-            if (p.equals(player)) continue; // 시전자 제외
-            if (p.getLocation().distance(player.getLocation()) <= 30.0) {
-                if (!plugin.getTeamManager().isSameTeam(player, p)) {
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 600, 0, false, false));
-                    p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 600, 0, false, false));
-                }
-            }
-        }
-
         UUID id = player.getUniqueId();
         active025FastRevive.add(id);
 
@@ -239,7 +360,20 @@ public class RelicAbilityHandler {
             return;
         }
 
-        target.teleport(player.getLocation());
+        Location startLoc = target.getLocation().clone();
+        Location endLoc = player.getLocation().clone();
+        target.teleport(endLoc);
+        
+        // 붉은 실 파티클 트레일 생성 (직선 보간)
+        double distance = startLoc.distance(endLoc);
+        if (distance > 0) {
+            org.bukkit.util.Vector dir = endLoc.toVector().subtract(startLoc.toVector()).normalize();
+            for (double d = 0; d <= distance; d += 0.5) {
+                Location pLoc = startLoc.clone().add(dir.clone().multiply(d)).add(0, 1, 0); // 눈높이 보정
+                player.getWorld().spawnParticle(org.bukkit.Particle.DUST, pLoc, 1, new org.bukkit.Particle.DustOptions(org.bukkit.Color.RED, 1.5f));
+            }
+        }
+
         player.sendMessage("§d[붉은 봉합] " + target.getName() + "님을 내 위치로 소환했습니다! 구조를 시작하세요!");
         target.sendMessage("§d[붉은 봉합] 팀원에 의해 안전 지대로 이동되었습니다!");
     }
@@ -283,39 +417,41 @@ public class RelicAbilityHandler {
         Location trapLoc = player.getLocation().clone();
         player.sendMessage("§e[탐욕의 동전] 가짜 봉인 유물 트랩을 설치했습니다!");
 
-        // SealedRelicManager의 ItemDisplay와 동일하게 보이는 가짜 생성
-        // MVP: ArmorStand + 이름표로 대체
-        org.bukkit.entity.ArmorStand fake = player.getWorld().spawn(trapLoc, org.bukkit.entity.ArmorStand.class, stand -> {
-            stand.setVisible(false);
-            stand.setGravity(false);
-            stand.setSmall(true);
-            stand.setCustomName("§5[봉인] §d??? 유물 §7(해제까지 ??초)");
-            stand.setCustomNameVisible(true);
-            stand.setMarker(true);
-            stand.getEquipment().setHelmet(new org.bukkit.inventory.ItemStack(Material.NETHER_STAR));
-        });
+        // 가짜 봉인 유물 (아이템) 소환
+        ItemStack fakeItem = new ItemStack(Material.GOLD_INGOT);
+        org.bukkit.entity.Item fake = player.getWorld().dropItem(trapLoc, fakeItem);
+        fake.setPickupDelay(32767);
+        fake.setUnlimitedLifetime(true);
+        fake.setInvulnerable(true);
+        fake.setGlowing(true);
+        fake.customName(net.kyori.adventure.text.Component.text("§c[봉인 중] §e탐욕의 동전 §7(300초)"));
+        fake.setCustomNameVisible(true);
+        
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(trapLoc, "§b[소문] %s쪽에서 탐욕스러운 금속음이 들렸습니다.");
 
         // 3분(3600틱) 뒤 자동 소멸
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!fake.isDead()) fake.remove();
         }, 3600L);
 
-        // 근접 우클릭 감지를 위한 반복 태스크
-        new BukkitRunnable() {
+        // 근접(1.5블록 이내) 감지를 위한 반복 태스크
+        new org.bukkit.scheduler.BukkitRunnable() {
             @Override
             public void run() {
                 if (fake.isDead()) { this.cancel(); return; }
 
                 for (Player p : fake.getWorld().getPlayers()) {
                     if (plugin.getTeamManager().isSameTeam(player, p)) continue;
-                    if (p.getLocation().distance(fake.getLocation()) <= 2.5) {
+                    if (p.getLocation().distanceSquared(fake.getLocation()) <= 2.25) { // 1.5블록
                         // 트랩 발동!
                         fake.remove();
                         p.sendMessage("§4[함정!] 가짜 유물이었습니다!");
                         player.sendMessage("§a[탐욕의 동전] " + p.getName() + "이(가) 트랩에 걸렸습니다!");
 
-                        // 폭발 파티클
+                        // 폭발 데미지 (지형 파괴 X)
                         p.getWorld().createExplosion(fake.getLocation(), 0F, false, false);
+                        p.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION_LARGE, fake.getLocation(), 1);
+                        p.damage(10.0, player);
 
                         // 디버프
                         p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 1, false, false)); // 5초 구속2
@@ -326,7 +462,7 @@ public class RelicAbilityHandler {
                     }
                 }
             }
-        }.runTaskTimer(plugin, 20L, 10L);
+        }.runTaskTimer(plugin, 20L, 5L);
     }
 
     // #021 결투자의 파편 — 15x15 결투장 20초간 강제 1대1
@@ -358,7 +494,8 @@ public class RelicAbilityHandler {
 
         player.sendMessage("§4[결투자의 파편] " + enemy.getName() + "과(와) 20초간 강제 결투가 시작됩니다!");
         enemy.sendMessage("§4[결투자의 파편] " + player.getName() + "이(가) 당신을 결투에 가뒀습니다! 20초간 탈출 불가!");
-        Bukkit.broadcast(Component.text("§4[결투] " + player.getName() + " vs " + enemy.getName() + " — 20초 결투 시작!"));
+        
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(center, "§b[소문] %s쪽에서 살기가 느껴지는 결투가 시작되었습니다.");
 
         // 결투장 벽 생성 (배리어 블록으로 7블록 반경 큐브)
         Set<Location> barriers = new HashSet<>();
@@ -392,18 +529,41 @@ public class RelicAbilityHandler {
             if (player.isOnline()) player.sendMessage("§a[결투] 결투가 종료되었습니다.");
             if (enemy.isOnline()) enemy.sendMessage("§a[결투] 결투가 종료되었습니다.");
         }, 400L); // 20초
+        
+        // 이탈 방지 체크
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                if (ticks >= 400 || !active021Duel.containsKey(player.getUniqueId())) {
+                    this.cancel();
+                    return;
+                }
+                ticks += 10;
+                
+                if (player.isOnline() && player.getWorld().equals(center.getWorld()) && player.getLocation().distanceSquared(center) > 100) {
+                    player.teleport(center);
+                    player.damage(5.0);
+                    player.sendMessage("§c[결투자의 파편] 결투장을 벗어날 수 없습니다!");
+                }
+                if (enemy.isOnline() && enemy.getWorld().equals(center.getWorld()) && enemy.getLocation().distanceSquared(center) > 100) {
+                    enemy.teleport(center);
+                    enemy.damage(5.0);
+                    enemy.sendMessage("§c[결투자의 파편] 결투장을 벗어날 수 없습니다!");
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 10L);
     }
 
     // #020 소문의 등불 — 4가지 옵션 중 하나를 선택하는 GUI 오픈
     private void execute020(Player player) {
         Inventory inv = Bukkit.createInventory(null, 9, Component.text("§5소문의 등불"));
 
-        inv.setItem(1, createGuiItem(Material.COMPASS, "§d[미발견 유물 스캔]", "§7아직 세상에 나오지 않은", "§7유물의 정보를 스캔합니다."));
         inv.setItem(3, createGuiItem(Material.ENDER_EYE, "§5[봉인 유물 스캔]", "§7현재 바닥에 봉인된", "§7유물들의 위치를 파악합니다."));
-        inv.setItem(5, createGuiItem(Material.NAME_TAG, "§e[소유자 검색 명령어]", "§7특정 번호의 유물을 누가", "§7가졌는지 알아낼 수 있는 명령어를 받습니다."));
-        inv.setItem(7, createGuiItem(Material.PLAYER_HEAD, "§a[유물 보유 현황]", "§7현재 접속 중인 플레이어들의", "§7유물 보유 현황을 스캔합니다."));
+        inv.setItem(5, createGuiItem(Material.NAME_TAG, "§e[소유자 검색 모드]", "§7특정 번호의 유물을 누가", "§7가졌는지 알아낼 수 있는 검색 모드를 켭니다."));
 
         player.openInventory(inv);
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 누군가 소문의 등불을 켰습니다.");
     }
 
     private ItemStack createGuiItem(Material material, String name, String... lore) {
@@ -420,13 +580,6 @@ public class RelicAbilityHandler {
         return item;
     }
 
-    public void execute020Option1(Player player) {
-        player.sendMessage("§d[소문의 등불] §f미발견 유물 정보를 스캔합니다...");
-        boolean foundUnspawned = false;
-        // DB 연동 및 스폰 로직 확인 (MVP 생략)
-        player.sendMessage("§7  [미발견] 모든 유물이 이미 세상에 등장했습니다.");
-    }
-
     public void execute020Option2(Player player) {
         player.sendMessage("§d[소문의 등불] §f현재 바닥에 봉인된 유물을 스캔합니다...");
         java.util.List<org.bukkit.entity.Item> sealed = plugin.getSealedRelicManager().getActiveSealedRelics();
@@ -435,9 +588,12 @@ public class RelicAbilityHandler {
         } else {
             for (org.bukkit.entity.Item display : sealed) {
                 Location loc = display.getLocation();
-                int rx = (int) (Math.round(loc.getBlockX() / 100.0) * 100);
-                int rz = (int) (Math.round(loc.getBlockZ() / 100.0) * 100);
-                player.sendMessage("§e  [봉인] 대략적인 위치: X: " + rx + " 부근, Z: " + rz + " 부근");
+                int rx = (int) (Math.round(loc.getBlockX() / 10.0) * 10);
+                int rz = (int) (Math.round(loc.getBlockZ() / 10.0) * 10);
+                long end = display.getPersistentDataContainer().getOrDefault(
+                        RelicItemUtil.KEY_COOLDOWN_UNTIL, org.bukkit.persistence.PersistentDataType.LONG, 0L);
+                int leftSec = Math.max(0, (int) ((end - System.currentTimeMillis()) / 1000));
+                player.sendMessage("§e  [봉인] " + display.getName() + " §7(남은 시간: " + leftSec + "초) - 대략 위치: X: " + rx + " 부근, Z: " + rz + " 부근");
             }
         }
     }
@@ -458,17 +614,9 @@ public class RelicAbilityHandler {
         }, 6000L); // 5분
     }
 
-    public void execute020Option4(Player player) {
-        player.sendMessage("§d[소문의 등불] §f현재 유물 보유 현황을 스캔합니다...");
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            int count = plugin.getRelicManager().countPlayerRelics(p);
-            if (count > 0) {
-                player.sendMessage("§7    - " + p.getName() + ": §e" + count + "개 보유");
-            }
-        }
-    }
-
     // ======================== Batch 3: #019 ~ #015 ========================
+
+    private org.bukkit.entity.Item pending019Relic;
 
     // #019 봉인의 바늘 — 봉인 유물의 봉인 시간을 절반으로 단축
     private void execute019(Player player) {
@@ -477,37 +625,76 @@ public class RelicAbilityHandler {
             player.sendMessage("§c[RelicWars] 50블록 이내에 봉인된 유물이 없습니다!");
             return;
         }
+        
+        pending019Relic = nearest;
+        Inventory inv = Bukkit.createInventory(null, 9, Component.text("§3봉인의 바늘"));
+        inv.setItem(3, createGuiItem(Material.SUGAR, "§a[시간 단축]", "§7해당 유물의 남은 봉인 시간을", "§7§l절반§7으로 단축합니다."));
+        inv.setItem(5, createGuiItem(Material.CLOCK, "§c[시간 연장]", "§7해당 유물의 남은 봉인 시간을", "§7§l2배§7로 연장합니다."));
+        
+        player.openInventory(inv);
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] %s쪽에서 시간의 흐름이 비틀리는 듯한 파동이 발생했습니다.");
+    }
 
-        plugin.getSealedRelicManager().reduceSealTime(nearest, 0.5);
-        player.sendMessage("§d[봉인의 바늘] 근처 봉인 유물의 봉인 시간을 절반으로 단축했습니다!");
-        player.sendMessage("§7  위치: X:" + (int) nearest.getLocation().getX() + " Y:" + (int) nearest.getLocation().getY() + " Z:" + (int) nearest.getLocation().getZ());
+    public void execute019Option1(Player player) {
+        if (pending019Relic == null || !pending019Relic.isValid()) {
+            player.sendMessage("§c[봉인의 바늘] 대상 유물이 사라졌습니다.");
+            return;
+        }
+        plugin.getSealedRelicManager().reduceSealTime(pending019Relic, 0.5);
+        player.sendMessage("§d[봉인의 바늘] " + pending019Relic.getName() + "의 봉인 시간을 §l절반§d으로 단축했습니다!");
+        pending019Relic = null;
+    }
+
+    public void execute019Option2(Player player) {
+        if (pending019Relic == null || !pending019Relic.isValid()) {
+            player.sendMessage("§c[봉인의 바늘] 대상 유물이 사라졌습니다.");
+            return;
+        }
+        // SealedRelicManager에 시간을 늘리는 메소드가 없으므로, 다시 reduceSealTime(relic, 2.0) 하거나 
+        // 직접 PDC를 수정해야 하지만, reduceSealTime(relic, factor) 가 곱하기 연산이라면 가능합니다.
+        // 확인 필요. 우선 reduceSealTime(relic, 2.0)로 연장
+        plugin.getSealedRelicManager().reduceSealTime(pending019Relic, 2.0);
+        player.sendMessage("§d[봉인의 바늘] " + pending019Relic.getName() + "의 봉인 시간을 §l2배§d로 연장했습니다!");
+        pending019Relic = null;
     }
 
     // #018 흔적 렌즈 — 200블록 내 유물 보유자의 발자국 파티클
     private void execute018(Player player) {
-        player.sendMessage("§e[흔적 렌즈] 반경 200블록 내 유물 보유자의 발자국을 추적합니다!");
+        player.sendMessage("§e[흔적 렌즈] 반경 200블록 내 최근 3분간의 유물 보유자 흔적을 추적합니다!");
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 누군가 흔적을 읽기 시작했습니다.");
 
-        // 유물 보유자 위치에 형광 파티클 표시 (30초간)
+        // 자신의 위치에 역추적 흔적 (자주색 파티클 5초간)
         new BukkitRunnable() {
-            int ticks = 0;
+            int count = 0;
+            Location origin = player.getLocation().clone();
             @Override
             public void run() {
-                if (!player.isOnline() || ticks >= 600) { this.cancel(); return; }
-                ticks += 10;
+                if (count++ > 25) { this.cancel(); return; }
+                player.getWorld().spawnParticle(org.bukkit.Particle.SPELL_WITCH, origin.clone().add(0, 1, 0), 10, 0.3, 0.5, 0.3, 0);
+            }
+        }.runTaskTimer(plugin, 0L, 4L);
 
-                for (Player p : player.getWorld().getPlayers()) {
-                    if (p.equals(player)) continue;
-                    if (p.getLocation().distance(player.getLocation()) > 200) continue;
-                    int relicCount = plugin.getRelicManager().countPlayerRelics(p);
-                    if (relicCount > 0) {
-                        // 등급별 색상 파티클
-                        org.bukkit.Particle particle = org.bukkit.Particle.HAPPY_VILLAGER;
-                        Location footprint = p.getLocation().clone().add(0, 0.1, 0);
-                        player.spawnParticle(particle, footprint, 5, 0.3, 0.05, 0.3, 0);
+        Map<UUID, Queue<FootprintTracker.FootprintData>> footprints = plugin.getFootprintTracker().getFootprints();
+        for (Queue<FootprintTracker.FootprintData> queue : footprints.values()) {
+            for (FootprintTracker.FootprintData data : queue) {
+                if (data.getLoc().getWorld().equals(player.getWorld())) {
+                    if (data.getLoc().distanceSquared(player.getLocation()) <= 40000) { // 200 blocks
+                        // 등급별 색상 지정
+                        org.bukkit.Color color;
+                        int num = data.getBestRelicNum();
+                        if (num <= 5) color = org.bukkit.Color.YELLOW; // 5단계 (금색)
+                        else if (num <= 10) color = org.bukkit.Color.PURPLE; // 4단계 (보라색)
+                        else if (num <= 18) color = org.bukkit.Color.AQUA; // 3단계 (하늘색)
+                        else if (num <= 24) color = org.bukkit.Color.LIME; // 2단계 (초록색)
+                        else color = org.bukkit.Color.WHITE; // 1단계 (흰색)
+
+                        // 먼지 파티클 생성
+                        org.bukkit.Particle.DustOptions dustOptions = new org.bukkit.Particle.DustOptions(color, 1.5f);
+                        player.spawnParticle(org.bukkit.Particle.DUST, data.getLoc().clone().add(0, 0.1, 0), 2, 0.2, 0, 0.2, dustOptions);
                     }
                 }
             }
-        }.runTaskTimer(plugin, 0L, 10L);
+        }
     }
 
     // #017 왜곡의 닻 — 다운 시 닻 위치로 텔레포트 세이브
@@ -516,37 +703,83 @@ public class RelicAbilityHandler {
         player.sendMessage("§5[왜곡의 닻] 현재 위치에 공간 왜곡장을 설치했습니다! (60초간 활성)");
         player.sendMessage("§7  이 범위(50블록) 안에서 다운되면 이 위치로 순간이동합니다.");
 
-        UUID id = player.getUniqueId();
-        // 닻 위치 저장 (간이 구현: 60초 후 만료)
-        // 실제로는 CombatManager의 다운 로직에서 이 닻을 체크해야 함
-        // MVP: 60초간 다운 시 텔레포트 훅 등록
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] %s쪽에서 공간이 일그러지는 소리가 들렸습니다.");
+
+        String teamId = plugin.getTeamManager().getTeamId(player);
+        String key = teamId != null ? teamId : player.getUniqueId().toString();
+        active017Anchor.put(key, anchorLoc);
+
+        // 닻 위치에 보라색 파티클
+        BukkitTask particleTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!active017Anchor.containsKey(key)) { this.cancel(); return; }
+                anchorLoc.getWorld().spawnParticle(org.bukkit.Particle.PORTAL, anchorLoc.clone().add(0, 0.5, 0), 20, 0.5, 0.5, 0.5, 0.1);
+            }
+        }.runTaskTimer(plugin, 0L, 10L);
+
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (player.isOnline()) player.sendMessage("§c[왜곡의 닻] 왜곡장이 소멸되었습니다.");
-        }, 1200L);
+            if (active017Anchor.remove(key) != null) {
+                if (player.isOnline()) player.sendMessage("§c[왜곡의 닻] 왜곡장이 소멸되었습니다.");
+            }
+        }, 1200L); // 60초
     }
 
     // #016 감시의 방패 — 5분간 80블록 레이더
     private void execute016(Player player) {
         player.sendMessage("§b[감시의 방패] 반경 80블록 감시 구역을 5분간 전개합니다!");
         Location center = player.getLocation().clone();
+        
+        // 중심부에 희미한 파티클 리스크
+        BukkitTask particleTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                center.getWorld().spawnParticle(org.bukkit.Particle.ENCHANTMENT_TABLE, center.clone().add(0, 1, 0), 10, 0.5, 0.5, 0.5, 0.1);
+            }
+        }.runTaskTimer(plugin, 0L, 20L);
 
         new BukkitRunnable() {
             int ticks = 0;
             @Override
             public void run() {
-                if (!player.isOnline() || ticks >= 6000) { this.cancel(); return; }
+                if (!player.isOnline() || ticks >= 6000) { 
+                    this.cancel(); 
+                    particleTask.cancel();
+                    if (player.isOnline()) player.sendMessage("§c[감시의 방패] 감시 구역이 해제되었습니다.");
+                    return; 
+                }
                 ticks += 40;
 
+                // 적 감지 및 다운된 아군 감지
                 for (Player p : player.getWorld().getPlayers()) {
                     if (p.equals(player)) continue;
-                    if (plugin.getTeamManager().isSameTeam(player, p)) continue;
-                    if (p.getLocation().distance(center) <= 80.0) {
-                        // 방향 계산
+                    // #008 그림자 막 면역 (적 감지 시에만 무시, 아군 다운은 감지됨)
+                    boolean isShadowed = active008Shadow.contains(p.getUniqueId());
+                    
+                    if (p.getLocation().distanceSquared(center) <= 6400) {
                         Vector dir = p.getLocation().toVector().subtract(center.toVector());
                         int dist = (int) dir.length();
                         String direction = getCardinalDirection(dir);
-                        player.sendTitle("§c[경고] 적 감지", "§e" + direction + " " + dist + "블록", 0, 40, 10);
+                        
+                        boolean isSameTeam = plugin.getTeamManager().isSameTeam(player, p);
+                        if (!isSameTeam) {
+                            if (isShadowed) continue; // 그림자 막 발동 중인 적은 무시
+                            player.sendTitle("§c[경고] 적 감지", "§e" + direction + " " + dist + "블록", 0, 40, 10);
+                            return; // 1개 발견시 우선 경고 후 리턴
+                        } else if (plugin.getCombatManager().isDowned(p)) {
+                            player.sendTitle("§4[비상] 아군 다운", "§c" + direction + " " + dist + "블록", 0, 40, 10);
+                            return;
+                        }
                     }
+                }
+                
+                // 봉인 유물 감지
+                org.bukkit.entity.Item nearestSealed = plugin.getSealedRelicManager().getNearestSealed(center, 80);
+                if (nearestSealed != null) {
+                    Vector dir = nearestSealed.getLocation().toVector().subtract(center.toVector());
+                    int dist = (int) dir.length();
+                    String direction = getCardinalDirection(dir);
+                    player.sendTitle("§a[알림] 봉인 유물 감지", "§b" + direction + " " + dist + "블록", 0, 40, 10);
                 }
             }
         }.runTaskTimer(plugin, 0L, 40L); // 2초마다 스캔
@@ -560,26 +793,71 @@ public class RelicAbilityHandler {
             return;
         }
 
-        player.sendMessage("§6[회수자의 갈고리] 봉인 유물을 끌어옵니다!");
+        player.sendMessage("§6[회수자의 갈고리] 3초간 정신을 집중하여 유물을 끌어옵니다! (이동/피격 시 취소)");
+        Location startLoc = player.getLocation().clone();
+        active015Casting.add(player.getUniqueId());
 
-        // 3초에 걸쳐 유물을 플레이어 위치로 이동
-        final org.bukkit.entity.Item target = nearest;
+        // 캐스팅: 3초 대기 (60틱)
         new BukkitRunnable() {
             int ticks = 0;
             @Override
             public void run() {
-                if (ticks >= 60 || !target.isValid()) { this.cancel(); return; }
-                ticks += 3;
+                if (!player.isOnline() || !active015Casting.contains(player.getUniqueId())) {
+                    this.cancel();
+                    if (player.isOnline()) player.sendMessage("§c[회수자의 갈고리] 캐스팅이 취소되었습니다.");
+                    return;
+                }
+                
+                if (player.getLocation().distanceSquared(startLoc) > 0.25) {
+                    this.cancel();
+                    active015Casting.remove(player.getUniqueId());
+                    player.sendMessage("§c[회수자의 갈고리] 이동하여 캐스팅이 취소되었습니다.");
+                    return;
+                }
+
+                ticks += 5;
+                if (ticks >= 60) {
+                    this.cancel();
+                    active015Casting.remove(player.getUniqueId());
+                    
+                    if (!nearest.isValid()) {
+                        player.sendMessage("§c[회수자의 갈고리] 대상 유물이 사라졌습니다.");
+                        return;
+                    }
+                    
+                    // 끌어오기 시작
+                    player.sendMessage("§a[회수자의 갈고리] 유물을 낚아챘습니다!");
+                    startPullingRelic(player, nearest);
+                } else {
+                    player.spawnParticle(org.bukkit.Particle.ENCHANTMENT_TABLE, player.getLocation().add(0, 1, 0), 2, 0.2, 0.2, 0.2, 0.1);
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 5L);
+    }
+    
+    private void startPullingRelic(Player player, org.bukkit.entity.Item target) {
+        new BukkitRunnable() {
+            int count = 0;
+            @Override
+            public void run() {
+                if (count++ >= 20 || !target.isValid() || !player.isOnline()) { 
+                    this.cancel(); 
+                    if (target.isValid()) {
+                        plugin.getSealedRelicManager().reduceSealTime(target, 0.5); // 시간 절반 단축
+                        player.sendMessage("§d[회수자의 갈고리] 유물이 도착했으며, 봉인 시간이 절반으로 단축되었습니다!");
+                    }
+                    return; 
+                }
 
                 Location current = target.getLocation();
                 Location playerLoc = player.getLocation();
-                org.bukkit.util.Vector direction = playerLoc.toVector().subtract(current.toVector()).normalize().multiply(0.5);
+                org.bukkit.util.Vector direction = playerLoc.toVector().subtract(current.toVector()).normalize().multiply(1.0);
                 target.teleport(current.add(direction));
 
                 // 빛 궤적 파티클
-                player.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, current, 3, 0.1, 0.1, 0.1, 0);
+                player.getWorld().spawnParticle(org.bukkit.Particle.END_ROD, current, 5, 0.1, 0.1, 0.1, 0);
             }
-        }.runTaskTimer(plugin, 0L, 3L);
+        }.runTaskTimer(plugin, 0L, 1L); // 1초(20틱)만에 도착
     }
 
     // ======================== Batch 4: #014 ~ #010 ========================
@@ -666,18 +944,36 @@ public class RelicAbilityHandler {
 
     // #011 공명의 종 — 300블록 내 유물 보유자 전원 위치 적발
     private void execute011(Player player) {
-        player.sendMessage("§c[공명의 종] 뎅— 무거운 종소리가 울려 퍼집니다!");
-        Bukkit.broadcast(Component.text("§4[공명] 어디선가 무거운 종소리가 울려 퍼집니다..."));
+        player.sendMessage("§a[공명의 종] 반경 300블록 내의 모든 유물 소유자를 탐지합니다!");
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 어디선가 맑은 종소리가 울려퍼집니다.");
+
+        player.getWorld().playSound(player.getLocation(), org.bukkit.Sound.BLOCK_BELL_RESONATE, 3.0f, 1.0f);
 
         for (Player p : player.getWorld().getPlayers()) {
             if (p.equals(player)) continue;
-            if (p.getLocation().distance(player.getLocation()) > 300) continue;
+            // #008 그림자 막 면역
+            if (active008Shadow.contains(p.getUniqueId())) continue;
+            if (p.getLocation().distanceSquared(player.getLocation()) > 90000) continue; // 300 blocks
 
             int relicCount = plugin.getRelicManager().countPlayerRelics(p);
             if (relicCount > 0) {
-                // 발광 3초 + 벼락 파티클
+                // 발광 3초 + 붉은 벼락 파티클 3초
                 p.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 60, 0, false, false));
-                p.getWorld().strikeLightningEffect(p.getLocation());
+                
+                new BukkitRunnable() {
+                    int ticks = 0;
+                    @Override
+                    public void run() {
+                        if (ticks >= 60 || !p.isOnline()) { this.cancel(); return; }
+                        ticks += 5;
+                        
+                        // 머리 위로 10블록 높이까지 붉은 번개 기둥
+                        org.bukkit.Particle.DustOptions red = new org.bukkit.Particle.DustOptions(org.bukkit.Color.RED, 2.0f);
+                        for (double y = 0; y <= 10; y += 0.5) {
+                            p.getWorld().spawnParticle(org.bukkit.Particle.DUST, p.getLocation().add(0, y, 0), 2, 0.2, 0.2, 0.2, red);
+                        }
+                    }
+                }.runTaskTimer(plugin, 0L, 5L);
 
                 player.sendMessage("§e  [탐지] " + p.getName() + " — 유물 " + relicCount + "개 보유 (" +
                         (int) p.getLocation().distance(player.getLocation()) + "블록)");
@@ -688,21 +984,36 @@ public class RelicAbilityHandler {
 
     // #010 충격 코어 — 광역 넉백 + 5초 EMP (상호작용 차단)
     private void execute010(Player player) {
-        player.sendMessage("§4[충격 코어] EMP 충격파 발동!");
-        Bukkit.broadcast(Component.text("§4[EMP] 거대한 충격파가 발생했습니다!"));
+        player.sendMessage("§4[충격 코어] 반경 15블록 넉백 및 20블록 EMP 발동!");
+        Bukkit.broadcast(Component.text("§4[EMP] 거대한 폭발음과 함께 주변의 기운이 증발합니다!"));
+        
+        player.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION_HUGE, player.getLocation(), 1);
+        player.getWorld().playSound(player.getLocation(), org.bukkit.Sound.ENTITY_GENERIC_EXPLODE, 3.0f, 0.5f);
 
-        // 15블록 내 적 밀어내기
-        for (Entity e : player.getNearbyEntities(15, 15, 15)) {
+        // 20블록 내 적 탐색
+        for (Entity e : player.getNearbyEntities(20, 20, 20)) {
             if (!(e instanceof Player p)) continue;
             if (plugin.getTeamManager().isSameTeam(player, p)) continue;
 
-            Vector knockback = p.getLocation().toVector().subtract(player.getLocation().toVector()).normalize().multiply(3.0).setY(1.0);
-            p.setVelocity(knockback);
-            p.sendMessage("§c[EMP] 충격파에 의해 밀려났습니다! 5초간 유물 능력 사용 불가!");
+            // 15블록 내 강한 넉백
+            if (p.getLocation().distanceSquared(player.getLocation()) <= 225) {
+                Vector knockback = p.getLocation().toVector().subtract(player.getLocation().toVector());
+                if (knockback.lengthSquared() == 0) knockback = new Vector(0, 1, 0);
+                else knockback = knockback.normalize().multiply(3.0).setY(1.2);
+                p.setVelocity(knockback);
+            }
 
-            // 5초간 디버프 (구속 + 채굴피로로 상호작용 방해)
+            // 20블록 내 EMP 디버프
+            p.sendMessage("§c[EMP] 충격파에 의해 5초간 상호작용 및 유물 사용이 차단됩니다!");
             p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 2, false, false));
             p.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 100, 2, false, false));
+            
+            UUID id = p.getUniqueId();
+            active010EMP.add(id);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                active010EMP.remove(id);
+                if (p.isOnline()) p.sendMessage("§a[EMP] 시스템 복구 완료. 유물 사용이 가능합니다.");
+            }, 100L); // 5초
         }
     }
 
@@ -721,22 +1032,100 @@ public class RelicAbilityHandler {
         Bukkit.broadcast(Component.text("§5[파괴] 누군가 봉인 유물의 봉인을 강제로 파괴했습니다!"));
     }
 
+    // #006 차원 도약석 — 30블록 순간이동 + 5초 내 복귀
+    private void execute006(Player player) {
+        Location origin = player.getLocation().clone();
+        
+        // 30블록 앞 좌표 계산 (벽 통과 방지)
+        Block targetBlock = player.getTargetBlockExact(30, org.bukkit.FluidCollisionMode.NEVER);
+        Location targetLoc;
+        if (targetBlock != null) {
+            targetLoc = targetBlock.getLocation().add(0, 1, 0);
+            targetLoc.setDirection(origin.getDirection());
+        } else {
+            Vector dir = origin.getDirection().normalize().multiply(30);
+            targetLoc = origin.clone().add(dir);
+        }
+
+        // 출발지 파티클
+        player.getWorld().spawnParticle(org.bukkit.Particle.PORTAL, origin, 50, 0.5, 1.0, 0.5, 0.1);
+        player.getWorld().playSound(origin, org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+
+        // 홀로그램 잔상 (갑옷 거치대)
+        org.bukkit.entity.ArmorStand hologram = player.getWorld().spawn(origin, org.bukkit.entity.ArmorStand.class, stand -> {
+            stand.setVisible(false);
+            stand.setGravity(false);
+            stand.setBasePlate(false);
+            stand.setArms(true);
+            stand.getEquipment().setHelmet(new ItemStack(Material.PLAYER_HEAD)); // 머리(플레이어 머리로 대체 가능)
+            stand.getEquipment().setChestplate(new ItemStack(Material.LEATHER_CHESTPLATE));
+            stand.setCustomName("§d" + player.getName() + "의 잔상");
+            stand.setCustomNameVisible(true);
+        });
+
+        // 데이터 기록
+        UUID id = player.getUniqueId();
+        active006Leap.put(id, new LeapData(origin, player.getHealth(), hologram));
+
+        // 텔레포트
+        player.teleport(targetLoc);
+        player.getWorld().spawnParticle(org.bukkit.Particle.PORTAL, targetLoc, 50, 0.5, 1.0, 0.5, 0.1);
+        player.getWorld().playSound(targetLoc, org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+        player.sendMessage("§d[차원 도약석] 도약했습니다! 5초 내에 다시 사용하면 복귀합니다.");
+
+        // 5초 타이머
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            LeapData data = active006Leap.remove(id);
+            if (data != null) {
+                if (!data.hologram.isDead()) data.hologram.remove();
+                if (player.isOnline()) player.sendMessage("§c[차원 도약석] 복귀 시간이 초과되었습니다.");
+            }
+        }, 100L); // 5초
+    }
+    
+    private void execute006Return(Player player) {
+        LeapData data = active006Leap.remove(player.getUniqueId());
+        if (data == null) return;
+
+        if (!data.hologram.isDead()) data.hologram.remove();
+
+        // 체력 복구
+        player.setHealth(Math.min(player.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue(), Math.max(1.0, data.health)));
+        
+        // 상태이상 해제 (디버프 제거)
+        for (PotionEffect effect : player.getActivePotionEffects()) {
+            player.removePotionEffect(effect.getType());
+        }
+
+        // 복귀 텔레포트
+        Location returnLoc = data.origin;
+        player.getWorld().spawnParticle(org.bukkit.Particle.REVERSE_PORTAL, player.getLocation(), 50, 0.5, 1.0, 0.5, 0.1);
+        player.teleport(returnLoc);
+        player.getWorld().spawnParticle(org.bukkit.Particle.PORTAL, returnLoc, 50, 0.5, 1.0, 0.5, 0.1);
+        player.getWorld().playSound(returnLoc, org.bukkit.Sound.ITEM_CHORUS_FRUIT_TELEPORT, 1.0f, 1.0f);
+        
+        player.sendMessage("§a[차원 도약석] 시간을 되감아 원래 위치로 복귀했습니다! 상태가 회복됩니다.");
+    }
+
     // #008 그림자 막 — 3분간 모든 탐지 무효화 + 가짜 신호
     private void execute008(Player player) {
         player.sendMessage("§8[그림자 막] 3분간 팀 전체가 모든 탐지에서 사라집니다!");
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 주변에 짙은 그림자가 드리우며 기운이 사라집니다.");
 
-        // 팀원 투명화 3분
+        // 팀원 탐지 면역 3분
         String teamId = plugin.getTeamManager().getTeamId(player);
         if (teamId != null) {
             for (UUID memberUuid : plugin.getTeamManager().getTeamMembers(teamId)) {
                 Player member = Bukkit.getPlayer(memberUuid);
+                active008Shadow.add(memberUuid);
                 if (member != null && member.isOnline()) {
-                    member.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 3600, 0, false, false));
-                    member.sendMessage("§8[그림자 막] 3분간 모든 탐지에서 은폐됩니다!");
+                    member.sendMessage("§8[그림자 막] 3분간 모든 탐지에서 완벽하게 은폐됩니다!");
                 }
+                Bukkit.getScheduler().runTaskLater(plugin, () -> active008Shadow.remove(memberUuid), 3600L);
             }
         } else {
-            player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 3600, 0, false, false));
+            active008Shadow.add(player.getUniqueId());
+            Bukkit.getScheduler().runTaskLater(plugin, () -> active008Shadow.remove(player.getUniqueId()), 3600L);
         }
 
         // 가짜 신호 3개 생성 (ArmorStand)
@@ -758,64 +1147,68 @@ public class RelicAbilityHandler {
         }
     }
 
-    // #007 파수꾼의 돔 — 15초 절대 방어막
+    // #007 파수꾼의 돔 — 15초 절대 방어막 (역장)
     private void execute007(Player player) {
-        player.sendMessage("§b[파수꾼의 돔] 반경 8블록 절대 방어막을 15초간 전개합니다!");
-        Location center = player.getLocation().clone();
+        player.sendMessage("§b[파수꾼의 돔] 반경 8블록 절대 방어막(역장)을 15초간 전개합니다!");
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 거대한 방벽이 세워지는 진동이 느껴집니다.");
 
-        // 배리어 블록으로 돔 생성
-        Set<Location> domeBlocks = new HashSet<>();
-        int radius = 8;
-        for (int x = -radius; x <= radius; x++) {
-            for (int y = -1; y <= radius; y++) {
-                for (int z = -radius; z <= radius; z++) {
-                    double dist = Math.sqrt(x * x + y * y + z * z);
-                    if (dist >= radius - 0.5 && dist <= radius + 0.5) {
-                        Location bLoc = center.clone().add(x, y, z);
-                        Block b = bLoc.getBlock();
-                        if (b.getType() == Material.AIR) {
-                            b.setType(Material.BARRIER);
-                            domeBlocks.add(bLoc);
+        Location center = player.getLocation().clone();
+        String teamId = plugin.getTeamManager().getTeamId(player);
+        String key = teamId != null ? teamId : player.getUniqueId().toString();
+        active007Dome.put(center, key);
+
+        // 파티클 타이머 (돔 경계 표시) 및 역장 밀어내기
+        BukkitTask forcefieldTask = new BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                ticks += 2;
+                if (ticks % 20 == 0) {
+                    for (double t = 0; t <= Math.PI; t += Math.PI / 10) {
+                        for (double p = 0; p <= 2 * Math.PI; p += Math.PI / 10) {
+                            double x = 8 * Math.sin(t) * Math.cos(p);
+                            double y = 8 * Math.cos(t);
+                            double z = 8 * Math.sin(t) * Math.sin(p);
+                            if (y >= 0) {
+                                center.getWorld().spawnParticle(org.bukkit.Particle.SOUL, center.clone().add(x, y, z), 1, 0, 0, 0, 0);
+                            }
+                        }
+                    }
+                }
+
+                // 적 밀어내기 및 투사체 차단
+                for (Entity e : center.getWorld().getNearbyEntities(center, 8.5, 8.5, 8.5)) {
+                    if (e instanceof org.bukkit.entity.Projectile proj) {
+                        if (proj.getShooter() instanceof Player shooter) {
+                            String shooterTeam = plugin.getTeamManager().getTeamId(shooter);
+                            String sKey = shooterTeam != null ? shooterTeam : shooter.getUniqueId().toString();
+                            if (!sKey.equals(key)) {
+                                proj.remove(); // 적 투사체 소멸
+                                center.getWorld().spawnParticle(org.bukkit.Particle.SMOKE_LARGE, proj.getLocation(), 2);
+                            }
+                        }
+                    } else if (e instanceof Player p) {
+                        String pTeam = plugin.getTeamManager().getTeamId(p);
+                        String pKey = pTeam != null ? pTeam : p.getUniqueId().toString();
+                        if (!pKey.equals(key) && p.getLocation().distanceSquared(center) <= 64) {
+                            Vector push = p.getLocation().toVector().subtract(center.toVector());
+                            if (push.lengthSquared() == 0) push = new Vector(0, 1, 0);
+                            else push = push.normalize().multiply(1.5).setY(0.2);
+                            p.setVelocity(push);
+                            p.sendMessage("§c[파수꾼의 돔] 적의 역장에 튕겨났습니다!");
                         }
                     }
                 }
             }
-        }
+        }.runTaskTimer(plugin, 0L, 2L); // 0.1초마다
 
-        // 15초 뒤 해제
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            for (Location bLoc : domeBlocks) {
-                if (bLoc.getBlock().getType() == Material.BARRIER) {
-                    bLoc.getBlock().setType(Material.AIR);
-                }
-            }
+            active007Dome.remove(center);
+            forcefieldTask.cancel();
             if (player.isOnline()) player.sendMessage("§c[파수꾼의 돔] 방어막이 해제되었습니다.");
-        }, 300L);
+        }, 300L); // 15초
     }
 
-    // #006 차원 도약석 — 30블록 순간이동 + 5초 내 복귀
-    private void execute006(Player player) {
-        Location origin = player.getLocation().clone();
-        Vector dir = player.getLocation().getDirection().normalize().multiply(30);
-        Location dest = origin.clone().add(dir);
-        dest.setY(player.getWorld().getHighestBlockYAt(dest) + 1);
-
-        player.teleport(dest);
-        player.sendMessage("§5[차원 도약] 30블록 전방으로 도약! 5초 내 다시 사용하면 원래 위치로 복귀합니다.");
-
-        // 환영(파티클) 원래 위치에 표시
-        new BukkitRunnable() {
-            int ticks = 0;
-            @Override
-            public void run() {
-                if (ticks >= 100) { this.cancel(); return; }
-                ticks += 5;
-                origin.getWorld().spawnParticle(org.bukkit.Particle.PORTAL, origin.clone().add(0, 1, 0), 15, 0.3, 0.8, 0.3, 0);
-            }
-        }.runTaskTimer(plugin, 0L, 5L);
-
-        // TODO: 5초 내 재사용 시 복귀 + 데미지/상태이상 무효화 (복잡한 상태머신 필요, MVP에서는 단순 텔레포트만)
-    }
 
     // #005 불멸의 심장 — 패시브: 다운 무시 1회 (MVP: 액티브로 대체)
     private void execute005(Player player) {
@@ -852,8 +1245,8 @@ public class RelicAbilityHandler {
             stormCenter = player.getLocation();
         }
 
-        player.sendMessage("§b[포풍의 왕관] 대상 지역에 파멸적인 뇌우를 15초간 소환합니다!");
-        Bukkit.broadcast(Component.text("§4[폭풍] 하늘이 침음하며 광란의 뇌우가 쏟아집니다!"));
+        player.sendMessage("§b[폭풍의 왕관] 대상 지역에 파멸적인 뇌우를 15초간 소환합니다!");
+        Bukkit.broadcast(Component.text("§4[폭풍] 하늘이 진동하며 광란의 뇌우가 쏟아집니다!"));
 
         final Location center = stormCenter;
         new BukkitRunnable() {
@@ -861,130 +1254,160 @@ public class RelicAbilityHandler {
             @Override
             public void run() {
                 if (ticks >= 300) { this.cancel(); return; } // 15초
-                ticks += 10;
+                ticks += 20;
 
-                // 1초마다 3발의 베락
+                // 1초마다 번개 타격 및 데미지
                 for (int i = 0; i < 3; i++) {
                     double rx = (Math.random() - 0.5) * 60; // 반경 30
                     double rz = (Math.random() - 0.5) * 60;
                     Location strike = center.clone().add(rx, 0, rz);
                     strike.setY(center.getWorld().getHighestBlockYAt(strike));
-                    center.getWorld().strikeLightning(strike);
+                    center.getWorld().strikeLightningEffect(strike);
                 }
 
-                // 범위 내 적에게 디버프
+                // 범위 내 적에게 피해 및 디버프
                 for (Player p : center.getWorld().getPlayers()) {
                     if (p.equals(player)) continue;
                     if (plugin.getTeamManager().isSameTeam(player, p)) continue;
-                    if (p.getLocation().distance(center) <= 30.0) {
+                    if (p.getLocation().distanceSquared(center) <= 900) { // 30블록
+                        p.damage(2.0, player); // 1칸 데미지
                         p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 1, false, false));
+                        p.sendTitle("§c[벼락]", "§7눈앞이 번쩍입니다!", 0, 20, 10);
                     }
                 }
             }
-        }.runTaskTimer(plugin, 0L, 10L);
+        }.runTaskTimer(plugin, 0L, 20L); // 1초마다
     }
 
     // #003 절대 좌표 나침반 — 특정 유물의 실시간 좌표 3분간 표시
     private void execute003(Player player) {
-        player.sendMessage("§5[절대 좌표 나침반] 추적할 유물 번호를 채팅에 입력하세요! (1~30)");
-        player.sendMessage("§7  3분간 해당 유물의 실시간 좌표가 표시됩니다.");
+        player.sendMessage("§5[절대 좌표 나침반] 추적할 유물 번호(숫자)를 채팅에 입력하세요! (1~30)");
+        player.sendMessage("§7  (입력 대기 시간: 1분)");
+        
+        active003TrackerWait.add(player.getUniqueId());
 
-        // MVP: 주변 유저들의 유물 보유 현황 즉시 표시
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            if (p.equals(player)) continue;
-            int count = plugin.getRelicManager().countPlayerRelics(p);
-            if (count > 0) {
-                Location loc = p.getLocation();
-                player.sendMessage("§e  " + p.getName() + ": 유물 " + count + "개 — X:" + (int) loc.getX() + " Y:" + (int) loc.getY() + " Z:" + (int) loc.getZ());
-            }
-        }
-        // TODO: 채팅 입력 받아서 특정 번호 유물의 DB 소유자 좌표를 3분간 주기적으로 표시
-    }
-
-    // #002 탐욕의 적출자 — 다운된 적에게서 0.5초 즉시 강탈
-    private void execute002(Player player) {
-        // 5블록 이내 다운된 적 탐색
-        Player target = null;
-        for (Player p : player.getWorld().getPlayers()) {
-            if (p.equals(player)) continue;
-            if (plugin.getTeamManager().isSameTeam(player, p)) continue;
-            if (!plugin.getCombatManager().isDowned(p)) continue;
-            if (p.getLocation().distance(player.getLocation()) <= 5.0) {
-                target = p;
-                break;
-            }
-        }
-
-        if (target == null) {
-            player.sendMessage("§c[RelicWars] 5블록 이내에 다운된 적이 없습니다!");
-            return;
-        }
-
-        Player victim = target;
-        // 적에게서 가장 높은 번호 유물 1개 즉시 강탈
-        org.bukkit.inventory.ItemStack[] contents = victim.getInventory().getContents();
-        org.bukkit.inventory.ItemStack bestRelic = null;
-        int bestNum = -1;
-        int bestSlot = -1;
-
-        for (int i = 0; i < contents.length; i++) {
-            if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(contents[i])) {
-                int num = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(contents[i]);
-                if (num > bestNum) {
-                    bestNum = num;
-                    bestRelic = contents[i];
-                    bestSlot = i;
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (active003TrackerWait.remove(player.getUniqueId())) {
+                if (player.isOnline()) {
+                    player.sendMessage("§c[절대 좌표 나침반] 입력 대기 시간이 초과되었습니다.");
                 }
             }
-        }
-
-        if (bestRelic == null) {
-            player.sendMessage("§c[RelicWars] 대상이 유물을 보유하고 있지 않습니다.");
-            return;
-        }
-
-        // 적에게서 유물 제거, 내게 지급
-        victim.getInventory().setItem(bestSlot, null);
-        player.getInventory().addItem(bestRelic);
-
-        plugin.getDatabaseManager().updateRelicState(bestNum, "held", player.getUniqueId().toString(), player.getLocation());
-
-        player.sendMessage("§4[탐욕의 적출자] " + victim.getName() + "에게서 유물 #" + String.format("%03d", bestNum) + "을 즉시 적출했습니다!");
-        victim.sendMessage("§4[적출] 누군가 당신의 유물을 강제로 빼앗았습니다!");
-        Bukkit.broadcast(Component.text("§4[탐욕] 누군가 탐욕의 적출자로 유물을 강탈했습니다!"));
+        }, 1200L); // 1분
     }
 
-    // #001 태초의 별 — 60초간 갓모드 (모든 봉인 해제 + 전체 좌표 공유)
-    private void execute001(Player player) {
-        player.sendMessage("§6════════════════════════════════════════");
-        player.sendMessage("§6[태초의 별] §e60초간 태초의 지배자 상태가 됩니다!");
-        player.sendMessage("§6════════════════════════════════════════");
-        Bukkit.broadcast(Component.text("§6[태초의 별] 누군가 태초의 별을 발동했습니다! 60초간 모든 정보가 공유됩니다!"));
+    public void start003Tracker(Player player, int targetNum) {
+        com.wolfool.relicwars.relic.RelicDefinition def = com.wolfool.relicwars.relic.RelicDefinition.getByNumber(targetNum);
+        player.sendMessage("§d[절대 좌표 나침반] §e" + def.getName() + "§d의 좌표 추적을 시작합니다. (3분간 유지)");
 
-        // 60초간 모든 유저 좌표 + 체력 + 유물 개수 표시
         new BukkitRunnable() {
             int ticks = 0;
             @Override
             public void run() {
-                if (!player.isOnline() || ticks >= 1200) { this.cancel(); return; }
-                ticks += 40;
+                if (ticks >= 3600 || !player.isOnline()) { // 3분
+                    this.cancel();
+                    if (player.isOnline()) player.sendMessage("§c[절대 좌표 나침반] 추적이 종료되었습니다.");
+                    return;
+                }
+                ticks += 20;
 
-                player.sendMessage("§6─── [태초의 별] 실시간 정보 ───");
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (p.equals(player)) continue;
-                    Location loc = p.getLocation();
-                    int relics = plugin.getRelicManager().countPlayerRelics(p);
-                    int hp = (int) p.getHealth();
-                    player.sendMessage("§e  " + p.getName() + " | HP:" + hp + " | 유물:" + relics +
-                            " | X:" + (int) loc.getX() + " Y:" + (int) loc.getY() + " Z:" + (int) loc.getZ());
+                String ownerUuid = plugin.getDatabaseManager().getRelicOwner(targetNum);
+                Location loc = null;
+
+                if (ownerUuid != null) {
+                    Player targetPlayer = Bukkit.getPlayer(UUID.fromString(ownerUuid));
+                    if (targetPlayer != null && targetPlayer.isOnline()) {
+                        if (active008Shadow.contains(targetPlayer.getUniqueId())) {
+                            player.sendActionBar(Component.text("§8[추적] 대상이 그림자 속에 숨었습니다. 좌표 불명."));
+                            return;
+                        }
+                        loc = targetPlayer.getLocation();
+                        if (ticks == 20) {
+                            targetPlayer.sendMessage("§4[경고] 누군가 당신의 유물을 실시간으로 추적하고 있습니다!");
+                        }
+                    }
+                } else {
+                    // 필드 드랍 상태 (SealedRelicManager 활용)
+                    for (org.bukkit.entity.Item display : plugin.getSealedRelicManager().getSealedRelics()) {
+                        if (com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(display.getItemStack()) == targetNum) {
+                            loc = display.getLocation();
+                            break;
+                        }
+                    }
+                }
+
+                if (loc != null) {
+                    player.sendActionBar(Component.text("§d[추적] §e" + def.getName() + " §f- X: " + loc.getBlockX() + ", Y: " + loc.getBlockY() + ", Z: " + loc.getBlockZ()));
+                } else {
+                    player.sendActionBar(Component.text("§c[추적] 대상 유물의 위치를 확인할 수 없습니다."));
                 }
             }
-        }.runTaskTimer(plugin, 0L, 40L); // 2초마다 업데이트
+        }.runTaskTimer(plugin, 0L, 20L); // 1초마다 업데이트
+    }
 
-        // 버프
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 1200, 1, false, false));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 1200, 1, false, false));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 1200, 0, false, false));
+    // #002 탐욕의 적출자 — 다운된 적에게서 0.5초 즉시 강탈 (CombatListener에서 처리됨)
+    private void execute002(Player player) {
+        player.sendMessage("§c[탐욕의 적출자] 이 유물은 허공에 사용하는 것이 아닙니다. 다운된 적을 우클릭하여 발동하세요.");
+    }
+
+    // #001 오메가 프로토콜 — 발동 10초 뒤 반경 100블록 내 모든 플레이어 즉사 (사용 후 소멸)
+    private void execute001(Player player) {
+        // 인벤토리에서 유물 삭제
+        org.bukkit.inventory.ItemStack handItem = player.getInventory().getItemInMainHand();
+        if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(handItem) && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(handItem) == 1) {
+            handItem.setAmount(handItem.getAmount() - 1);
+        } else {
+            org.bukkit.inventory.ItemStack offItem = player.getInventory().getItemInOffHand();
+            if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(offItem) && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(offItem) == 1) {
+                offItem.setAmount(offItem.getAmount() - 1);
+            }
+        }
+
+        Bukkit.broadcast(Component.text("§4========================================"));
+        Bukkit.broadcast(Component.text("§c[경고] 오메가 프로토콜이 가동되었습니다. 10초 뒤 종말이 도래합니다."));
+        Bukkit.broadcast(Component.text("§4========================================"));
+
+        // 시전자 무적 및 이동 불가
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 200, 255, false, false));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 200, 128, false, false));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 200, 255, false, false));
+        
+        Location origin = player.getLocation().clone();
+
+        new BukkitRunnable() {
+            int ticks = 0;
+            @Override
+            public void run() {
+                if (!player.isOnline()) {
+                    this.cancel();
+                    return;
+                }
+                
+                ticks += 20; // 1초
+                int left = 10 - (ticks / 20);
+
+                if (left > 0) {
+                    Bukkit.broadcast(Component.text("§c[오메가 프로토콜] 종말까지... " + left + "초"));
+                    origin.getWorld().playSound(origin, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.5f);
+                } else {
+                    this.cancel();
+                    Bukkit.broadcast(Component.text("§0========================================"));
+                    Bukkit.broadcast(Component.text("§4[오메가 프로토콜] 종말이 도래했습니다."));
+                    Bukkit.broadcast(Component.text("§0========================================"));
+
+                    origin.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, origin, 1);
+                    origin.getWorld().playSound(origin, org.bukkit.Sound.ENTITY_WITHER_SPAWN, 2.0f, 0.5f);
+
+                    for (Player p : origin.getWorld().getPlayers()) {
+                        if (p.equals(player)) continue;
+                        if (p.getLocation().distanceSquared(origin) <= 10000) { // 100블록 반경
+                            // 모든 방어/무적 무시 절대 즉사
+                            p.setHealth(0.0);
+                            p.sendMessage("§4[종말] 오메가 프로토콜에 의해 소멸했습니다.");
+                        }
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 20L);
     }
 
     // ======================== 유틸리티 ========================

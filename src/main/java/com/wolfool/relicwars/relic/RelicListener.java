@@ -91,6 +91,9 @@ public class RelicListener implements Listener {
         RelicDefinition def = RelicDefinition.getByNumber(relicNumber);
         if (def == null) return;
 
+        // 바닐라 동작(아이템 던지기, 먹기, 블록 설치 등)을 완벽히 차단하여 유물이 소진되는 것을 방지합니다.
+        event.setCancelled(true);
+
         // 다운 상태에서는 유물 능력 사용 불가
         if (plugin.getCombatManager().isDowned(player)) {
             player.sendMessage("§c[RelicWars] 다운 상태에서는 유물 능력을 사용할 수 없습니다!");
@@ -120,6 +123,24 @@ public class RelicListener implements Listener {
         }
     }
 
+    /**
+     * 불멸의 심장(토템)이 바닐라 효과로 인해 소모되는 것을 방지합니다.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onEntityResurrect(org.bukkit.event.entity.EntityResurrectEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+
+        // 양손을 확인하여 토템 유물인지 확인
+        ItemStack main = player.getInventory().getItemInMainHand();
+        ItemStack off = player.getInventory().getItemInOffHand();
+
+        if (RelicItemUtil.isRelic(main) && main.getType() == org.bukkit.Material.TOTEM_OF_UNDYING) {
+            event.setCancelled(true);
+        } else if (RelicItemUtil.isRelic(off) && off.getType() == org.bukkit.Material.TOTEM_OF_UNDYING) {
+            event.setCancelled(true);
+        }
+    }
+
     // ======================== 보관 제한 ========================
 
     /**
@@ -137,18 +158,28 @@ public class RelicListener implements Listener {
             event.setCancelled(true);
             if (event.getClickedInventory() == topInventory) {
                 int slot = event.getSlot();
-                if (slot == 1) {
-                    player.closeInventory();
-                    plugin.getRelicAbilityHandler().execute020Option1(player);
-                } else if (slot == 3) {
+                if (slot == 3) {
                     player.closeInventory();
                     plugin.getRelicAbilityHandler().execute020Option2(player);
                 } else if (slot == 5) {
                     player.closeInventory();
                     plugin.getRelicAbilityHandler().execute020Option3(player);
-                } else if (slot == 7) {
+                }
+            }
+            return;
+        }
+        
+        // 봉인의 바늘 GUI 처리
+        if (event.getView().getTitle().equals("§3봉인의 바늘")) {
+            event.setCancelled(true);
+            if (event.getClickedInventory() == topInventory) {
+                int slot = event.getSlot();
+                if (slot == 3) {
                     player.closeInventory();
-                    plugin.getRelicAbilityHandler().execute020Option4(player);
+                    plugin.getRelicAbilityHandler().execute019Option1(player);
+                } else if (slot == 5) {
+                    player.closeInventory();
+                    plugin.getRelicAbilityHandler().execute019Option2(player);
                 }
             }
             return;
@@ -273,7 +304,11 @@ public class RelicListener implements Listener {
                     } else {
                         org.bukkit.entity.Player targetPlayer = org.bukkit.Bukkit.getPlayer(java.util.UUID.fromString(ownerUuid));
                         if (targetPlayer != null && targetPlayer.isOnline()) {
-                            player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물의 소유자: §a" + targetPlayer.getName() + " §7(온라인)");
+                            if (plugin.getRelicAbilityHandler().active008Shadow.contains(targetPlayer.getUniqueId())) {
+                                player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물의 소유자: §8[알 수 없는 그림자] §7(탐지 불가)");
+                            } else {
+                                player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물의 소유자: §a" + targetPlayer.getName() + " §7(온라인)");
+                            }
                         } else {
                             org.bukkit.OfflinePlayer offlineTarget = org.bukkit.Bukkit.getOfflinePlayer(java.util.UUID.fromString(ownerUuid));
                             player.sendMessage("§7[소문의 등불] §e" + def.getName() + " §7유물의 소유자: §c" + (offlineTarget.getName() != null ? offlineTarget.getName() : "알 수 없음") + " §7(오프라인)");
@@ -281,6 +316,27 @@ public class RelicListener implements Listener {
                     }
                 } catch (NumberFormatException e) {
                     player.sendMessage("§c[RelicWars] 유물 번호는 숫자여야 합니다. 검색이 취소되었습니다.");
+                }
+            });
+        } else if (plugin.getRelicAbilityHandler().active003TrackerWait.contains(player.getUniqueId())) {
+            event.setCancelled(true);
+            
+            String msg = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
+            
+            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                plugin.getRelicAbilityHandler().active003TrackerWait.remove(player.getUniqueId());
+                
+                try {
+                    int targetNum = Integer.parseInt(msg);
+                    com.wolfool.relicwars.relic.RelicDefinition def = com.wolfool.relicwars.relic.RelicDefinition.getByNumber(targetNum);
+                    if (def == null) {
+                        player.sendMessage("§c[RelicWars] 존재하지 않는 유물 번호입니다. (1~30)");
+                        return;
+                    }
+                    
+                    plugin.getRelicAbilityHandler().start003Tracker(player, targetNum);
+                } catch (NumberFormatException e) {
+                    player.sendMessage("§c[RelicWars] 유물 번호는 숫자여야 합니다. 추적이 취소되었습니다.");
                 }
             });
         }
