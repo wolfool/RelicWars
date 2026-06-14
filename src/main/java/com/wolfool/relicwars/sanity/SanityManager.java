@@ -119,16 +119,26 @@ public class SanityManager implements Manager {
                     int sanity = getSanity(p);
                     int max = plugin.getConfigManager().getSanityMax();
 
-                    if (sanity <= max * 0.2) {
-                        // 20% 이하: 심각 — 어둠 + 구속 + 독
+                    if (sanity <= max * 0.1) {
+                        // 10% 이하: 시야 감소(어둠) 및 독
                         p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 100, 0, false, false));
-                        p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 0, false, false));
+                        p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 100, 0, false, false));
                         p.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 60, 0, false, false));
-                        p.sendActionBar(Component.text("§4⚠ 정신력 위험! (" + sanity + "/" + max + ")"));
+                        p.sendActionBar(Component.text("§4⚠ [경고] 정신력이 한계에 다달았습니다! (" + sanity + "/" + max + ")"));
                     } else if (sanity <= max * 0.4) {
-                        // 40% 이하: 경고 — 어둠만
-                        p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 60, 0, false, false));
-                        p.sendActionBar(Component.text("§c⚠ 정신력 부족 (" + sanity + "/" + max + ")"));
+                        // 40% 이하: 구속 및 채굴 피로
+                        p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 0, false, false));
+                        p.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 100, 0, false, false));
+                        p.sendActionBar(Component.text("§c⚠ 환각과 피로가 몰려옵니다... (" + sanity + "/" + max + ")"));
+                    } else if (sanity <= max * 0.7) {
+                        // 70% 이하: 화면 흔들림 및 몬스터 환청
+                        // 화면 흔들림은 약한 멀미(Nausea)로 구현
+                        p.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 100, 0, false, false));
+                        // 10% 확률로 무작위 몬스터 소리 재생
+                        if (Math.random() < 0.1) {
+                            p.playSound(p.getLocation(), org.bukkit.Sound.ENTITY_ZOMBIE_AMBIENT, 0.5f, 0.8f);
+                        }
+                        p.sendActionBar(Component.text("§e⚠ 정신력이 불안정합니다. (" + sanity + "/" + max + ")"));
                     }
                 }
             }

@@ -313,7 +313,11 @@ public class CombatListener implements Listener {
                 return;
             }
 
-            // TODO: TeamManager 검증 (Phase 3 에서는 누구나 구조 가능하게 임시 설정)
+            // 팀원 검증: 같은 팀 소속이어야만 구조 가능
+            if (!plugin.getTeamManager().isSameTeam(rescuer, target)) {
+                rescuer.sendMessage("§c[RelicWars] 같은 팀원만 구조할 수 있습니다!");
+                return;
+            }
             
             startRevive(rescuer, target);
         }
