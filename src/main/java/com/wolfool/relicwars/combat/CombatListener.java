@@ -190,6 +190,9 @@ public class CombatListener implements Listener {
                     combatManager.revivePlayer(target);
                     rescuer.sendMessage("§a[RelicWars] 구조를 성공적으로 마쳤습니다!");
 
+                    // === 구조 완료 이펙트 ===
+                    com.wolfool.relicwars.relic.InteractionEffects.playReviveEffect(rescuer, target, plugin);
+
                     // 기믹 체크: #025 최후의 봉합, #024 붉은 봉합
                     if (plugin.getAcquisitionListener() != null) {
                         plugin.getAcquisitionListener().onReviveSuccess(rescuer, target);

@@ -5,6 +5,7 @@ com\wolfool\relicwars\event\BloodMoonTask$1.class
 com\wolfool\relicwars\combat\CombatManager.class
 com\wolfool\relicwars\relic\ability\RelicAbilityHandler$3.class
 com\wolfool\relicwars\event\BloodMoonTask.class
+com\wolfool\relicwars\relic\InteractionEffects$1.class
 com\wolfool\relicwars\boss\BossManager.class
 com\wolfool\relicwars\manager\Manager.class
 com\wolfool\relicwars\relic\ability\RelicAbilityHandler$5.class
@@ -31,6 +32,7 @@ com\wolfool\relicwars\ending\EndingManager.class
 com\wolfool\relicwars\team\TeamManager.class
 com\wolfool\relicwars\relic\ability\RelicAbilityHandler.class
 com\wolfool\relicwars\sanity\SanityManager.class
+com\wolfool\relicwars\relic\InteractionEffects.class
 com\wolfool\relicwars\relic\ability\RelicAbilityHandler$4.class
 com\wolfool\relicwars\sanity\SanityManager$1.class
 com\wolfool\relicwars\boss\GreedAssassin.class

@@ -123,6 +123,8 @@ public class SealedRelicManager implements Manager, Listener {
                     itemEntity.setGlowing(false);
                     // 봉인 완료 태그
                     itemEntity.getPersistentDataContainer().set(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG, 0L);
+                    // === 봉인 해제 이펙트 ===
+                    InteractionEffects.playUnsealEffect(itemEntity.getLocation());
                     cancelTask(itemEntity.getUniqueId());
                     return;
                 }
@@ -235,6 +237,9 @@ public class SealedRelicManager implements Manager, Listener {
                 }
                 player.sendActionBar(Component.text("§e유물 줍는 중... [" + gauge.toString() + "§e] " + String.format("%.1f", ticks / 20.0) + "초 / " + pickupSeconds + ".0초"));
 
+                // === 줍기 진행 중 틱 이펙트 ===
+                InteractionEffects.playPickupTickEffect(player, targetItem.getLocation(), (float) ticks / requiredTicks);
+
                 if (ticks >= requiredTicks) {
                     pickupTasks.remove(player.getUniqueId()).cancel();
 
@@ -251,8 +256,9 @@ public class SealedRelicManager implements Manager, Listener {
                     RelicDefinition def = RelicDefinition.getByNumber(relicNum);
                     if (def != null) {
                         player.sendMessage("§a[RelicWars] " + def.getDisplayName() + " §a유물을 획득했습니다!");
-                        player.sendActionBar(Component.text("§a유물 획득 완료!"));
                         Bukkit.broadcast(Component.text("§e[소문] 누군가 " + def.getTierColor() + def.getName() + " §e유물의 봉인을 풀었습니다!"));
+                        // === 획득 이펙트 ===
+                        InteractionEffects.playRelicAcquireEffect(player, def, plugin);
                     }
 
                     targetItem.remove();

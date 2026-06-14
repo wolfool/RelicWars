@@ -124,6 +124,9 @@ public class RelicAcquisitionListener implements Listener {
                 
                 Bukkit.broadcast(net.kyori.adventure.text.Component.text("§e[소문] §f누군가 특별한 조건을 달성하여 " + def.getTierColor() + def.getName() + "§f 유물이 세상에 모습을 드러냈습니다!"));
                 achiever.sendMessage("§a[RelicWars] 기믹 달성! 인벤토리에 유물이 지급되었습니다.");
+
+                // === 기믹 달성 이펙트 ===
+                InteractionEffects.playGimmickCompleteEffect(achiever, def, plugin);
             }
         }
     }

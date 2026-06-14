@@ -78,6 +78,9 @@ public class CombatManager implements Manager {
         player.sendMessage("§c[RelicWars] 치명상을 입고 쓰러졌습니다! (다운 상태)");
         player.sendTitle("§c§lDOWNED", "§7팀원의 구조를 기다리세요...", 10, 70, 20);
 
+        // === 다운 이펙트 ===
+        com.wolfool.relicwars.relic.InteractionEffects.playDownEffect(player);
+
         // --- 유물 1개 자동 드랍 ---
         if (plugin.getConfigManager().isDropRelicOnDowned()) {
             ItemStack droppedRelic = plugin.getRelicManager().extractDownedDrop(player);
@@ -96,6 +99,8 @@ public class CombatManager implements Manager {
                 if (isDowned(player) && player.isOnline()) {
                     player.sendMessage("§c[RelicWars] 구조받지 못해 사망했습니다...");
                     Bukkit.broadcast(Component.text("§c[RelicWars] §f" + player.getName() + "§c님이 구조받지 못해 사망했습니다."));
+                    // === 자동 확킬 이펙트 ===
+                    com.wolfool.relicwars.relic.InteractionEffects.playAutoExecuteEffect(player);
                     executePlayer(player, null);
                 }
             }, autoExecuteSeconds * 20L);
@@ -165,6 +170,9 @@ public class CombatManager implements Manager {
         } else {
             Bukkit.broadcast(Component.text("§c[RelicWars] §f" + victim.getName() + "§c님이 처형당했습니다!"));
         }
+
+        // === 확킬 이펙트 ===
+        com.wolfool.relicwars.relic.InteractionEffects.playExecuteEffect(victim, attacker);
     }
 
     /**
