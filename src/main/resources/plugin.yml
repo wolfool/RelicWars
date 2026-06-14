@@ -4,6 +4,7 @@ main: com.wolfool.relicwars.RelicWars
 api-version: '1.21'
 description: 유물 쟁탈전 마인크래프트 PvP 플러그인
 author: wolfool
+softdepend: [CraftEngine, BetterHud, BetterModel]
 
 commands:
   relic:

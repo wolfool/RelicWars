@@ -34,23 +34,6 @@ public class RelicListener implements Listener {
     private final RelicWars plugin;
     private final RelicManager relicManager;
 
-    /**
-     * 유물을 넣을 수 없는 인벤토리 타입 목록.
-     */
-    private static final Set<InventoryType> BLOCKED_INVENTORY_TYPES = Set.of(
-            InventoryType.ENDER_CHEST,
-            InventoryType.SHULKER_BOX,
-            InventoryType.BREWING,
-            InventoryType.ANVIL,
-            InventoryType.GRINDSTONE,
-            InventoryType.SMITHING,
-            InventoryType.FURNACE,
-            InventoryType.BLAST_FURNACE,
-            InventoryType.SMOKER,
-            InventoryType.DROPPER,
-            InventoryType.DISPENSER,
-            InventoryType.HOPPER
-    );
 
     /**
      * 유물을 설치할 수 없는 블록(아이템 액자, 갑옷 거치대 등)에 대한
@@ -185,53 +168,32 @@ public class RelicListener implements Listener {
             return;
         }
 
-        // 금지된 인벤토리 타입인지 확인
-        if (!BLOCKED_INVENTORY_TYPES.contains(topInventory.getType())) return;
+        // 합법적인 자기 인벤토리인지 확인 (CRAFTING = E키 기본 인벤토리, PLAYER = 기타 유저 인벤, CREATIVE = 크리에이티브 모드 인벤)
+        boolean isPlayerInventory = topInventory.getType() == InventoryType.CRAFTING || 
+                                    topInventory.getType() == InventoryType.PLAYER || 
+                                    topInventory.getType() == InventoryType.CREATIVE;
 
-        // Shift-클릭: 유물이 자동으로 금지 인벤토리로 이동하는 것 방지
-        if (event.isShiftClick()) {
-            ItemStack clickedItem = event.getCurrentItem();
-            if (RelicItemUtil.isRelic(clickedItem)) {
-                event.setCancelled(true);
-                player.sendMessage("§c[RelicWars] 유물은 이 보관함에 넣을 수 없습니다!");
-                return;
+        if (!isPlayerInventory) {
+            // 외부 상자/보관함/GUI 등에 유물을 옮기려는 시도 전면 차단
+            
+            // Shift-클릭으로 넣기 방지
+            if (event.isShiftClick()) {
+                ItemStack clickedItem = event.getCurrentItem();
+                if (RelicItemUtil.isRelic(clickedItem)) {
+                    event.setCancelled(true);
+                    player.sendMessage("§c[RelicWars] 유물은 자신의 인벤토리에만 보관할 수 있습니다!");
+                    return;
+                }
             }
-        }
 
-        // 금지 인벤토리 슬롯에 직접 놓기 방지
-        if (event.getClickedInventory() != null
-                && event.getClickedInventory().equals(topInventory)) {
-            ItemStack cursor = event.getCursor();
-            if (RelicItemUtil.isRelic(cursor)) {
-                event.setCancelled(true);
-                player.sendMessage("§c[RelicWars] 유물은 이 보관함에 넣을 수 없습니다!");
-                return;
-            }
-        }
-
-        // 합법적인 상자(Chest, Barrel)에 유물을 넣을 때 DB 업데이트
-        if (event.getClickedInventory() != null && event.getClickedInventory().equals(topInventory)) {
-            ItemStack cursor = event.getCursor();
-            if (RelicItemUtil.isRelic(cursor)) {
-                // 커서에 든 유물을 상자에 내려놓음
-                int relicNum = RelicItemUtil.getRelicNumber(cursor);
-                plugin.getDatabaseManager().updateRelicState(relicNum, "dropped", null, topInventory.getLocation());
-            }
-        } else if (event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && event.getClickedInventory() != null && event.getClickedInventory().equals(event.getView().getBottomInventory())) {
-            // 쉬프트 클릭으로 상자에 넣음
-            ItemStack clickedItem = event.getCurrentItem();
-            if (RelicItemUtil.isRelic(clickedItem)) {
-                int relicNum = RelicItemUtil.getRelicNumber(clickedItem);
-                plugin.getDatabaseManager().updateRelicState(relicNum, "dropped", null, topInventory.getLocation());
-            }
-        }
-
-        // 상자에서 유물을 꺼낼 때 DB 업데이트
-        if (event.getClickedInventory() != null && event.getClickedInventory().equals(topInventory)) {
-            ItemStack clickedItem = event.getCurrentItem();
-            if (RelicItemUtil.isRelic(clickedItem) && (event.getAction() == InventoryAction.PICKUP_ALL || event.getAction() == InventoryAction.PICKUP_HALF || event.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY)) {
-                int relicNum = RelicItemUtil.getRelicNumber(clickedItem);
-                plugin.getDatabaseManager().updateRelicState(relicNum, "held", player.getUniqueId().toString(), player.getLocation());
+            // 직접 커서로 넣기 방지
+            if (event.getClickedInventory() != null && event.getClickedInventory().equals(topInventory)) {
+                ItemStack cursor = event.getCursor();
+                if (RelicItemUtil.isRelic(cursor)) {
+                    event.setCancelled(true);
+                    player.sendMessage("§c[RelicWars] 유물은 자신의 인벤토리에만 보관할 수 있습니다!");
+                    return;
+                }
             }
         }
     }
