@@ -53,28 +53,30 @@ public class TeamManager implements Manager {
     }
 
     private void loadTeamsFromDB() {
-        Connection conn = plugin.getDatabaseManager().getConnection();
-        if (conn == null) return;
+        synchronized (plugin.getDatabaseManager()) {
+            Connection conn = plugin.getDatabaseManager().getConnection();
+            if (conn == null) return;
 
-        try {
-            String query = "SELECT uuid, team_id FROM players WHERE team_id IS NOT NULL";
-            try (PreparedStatement pstmt = conn.prepareStatement(query);
-                 ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    UUID uuid = UUID.fromString(rs.getString("uuid"));
-                    String teamId = rs.getString("team_id");
-                    playerTeams.put(uuid, teamId);
-                    
-                    List<UUID> list = teamMembers.get(teamId);
-                    if (list == null) {
-                        list = new ArrayList<>();
-                        teamMembers.put(teamId, list);
+            try {
+                String query = "SELECT uuid, team_id FROM players WHERE team_id IS NOT NULL";
+                try (PreparedStatement pstmt = conn.prepareStatement(query);
+                     ResultSet rs = pstmt.executeQuery()) {
+                    while (rs.next()) {
+                        UUID uuid = UUID.fromString(rs.getString("uuid"));
+                        String teamId = rs.getString("team_id");
+                        playerTeams.put(uuid, teamId);
+                        
+                        List<UUID> list = teamMembers.get(teamId);
+                        if (list == null) {
+                            list = new ArrayList<>();
+                            teamMembers.put(teamId, list);
+                        }
+                        list.add(uuid);
                     }
-                    list.add(uuid);
                 }
+            } catch (SQLException e) {
+                plugin.getLogger().warning("팀 데이터 로드 실패: " + e.getMessage());
             }
-        } catch (SQLException e) {
-            plugin.getLogger().warning("팀 데이터 로드 실패: " + e.getMessage());
         }
     }
 
@@ -105,18 +107,20 @@ public class TeamManager implements Manager {
 
     private int countRelicsFromDB(String uuidStr) {
         int count = 0;
-        Connection conn = plugin.getDatabaseManager().getConnection();
-        if (conn == null) return 0;
-        try {
-            String query = "SELECT COUNT(*) FROM relic_ownership WHERE owner_uuid = ? AND state = 'held'";
-            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setString(1, uuidStr);
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) count = rs.getInt(1);
+        synchronized (plugin.getDatabaseManager()) {
+            Connection conn = plugin.getDatabaseManager().getConnection();
+            if (conn == null) return 0;
+            try {
+                String query = "SELECT COUNT(*) FROM relic_ownership WHERE owner_uuid = ? AND state = 'held'";
+                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                    pstmt.setString(1, uuidStr);
+                    try (ResultSet rs = pstmt.executeQuery()) {
+                        if (rs.next()) count = rs.getInt(1);
+                    }
                 }
+            } catch (SQLException e) {
+                plugin.getLogger().warning("[RelicWars] 팀 유물 수 조회 실패: " + e.getMessage());
             }
-        } catch (SQLException e) {
-            plugin.getLogger().warning("[RelicWars] 팀 유물 수 조회 실패: " + e.getMessage());
         }
         return count;
     }

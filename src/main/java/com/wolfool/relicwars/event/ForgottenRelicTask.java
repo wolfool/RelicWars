@@ -25,45 +25,47 @@ public class ForgottenRelicTask extends BukkitRunnable {
 
     @Override
     public void run() {
-        // 비동기 스레드에서 실행됨
-        Connection conn = plugin.getDatabaseManager().getConnection();
-        try {
-            if (conn == null || conn.isClosed()) return;
+        // 비동기 스레드에서 실행됨 — DB 접근 동기화 필요
+        synchronized (plugin.getDatabaseManager()) {
+            Connection conn = plugin.getDatabaseManager().getConnection();
+            try {
+                if (conn == null || conn.isClosed()) return;
 
-            // state 가 'dropped' 인 유물들 검색
-            String query = "SELECT relic_number, dropped_world, dropped_x, dropped_y, dropped_z, dropped_at FROM relic_ownership WHERE state = 'dropped'";
-            try (PreparedStatement pstmt = conn.prepareStatement(query);
-                 ResultSet rs = pstmt.executeQuery()) {
+                // state 가 'dropped' 인 유물들 검색
+                String query = "SELECT relic_number, dropped_world, dropped_x, dropped_y, dropped_z, dropped_at FROM relic_ownership WHERE state = 'dropped'";
+                try (PreparedStatement pstmt = conn.prepareStatement(query);
+                     ResultSet rs = pstmt.executeQuery()) {
 
-                long now = System.currentTimeMillis();
+                    long now = System.currentTimeMillis();
 
-                while (rs.next()) {
-                    int relicNum = rs.getInt("relic_number");
-                    long droppedAt = rs.getLong("dropped_at");
-                    String world = rs.getString("dropped_world");
-                    double x = rs.getDouble("dropped_x");
-                    double y = rs.getDouble("dropped_y");
-                    double z = rs.getDouble("dropped_z");
+                    while (rs.next()) {
+                        int relicNum = rs.getInt("relic_number");
+                        long droppedAt = rs.getLong("dropped_at");
+                        String world = rs.getString("dropped_world");
+                        double x = rs.getDouble("dropped_x");
+                        double y = rs.getDouble("dropped_y");
+                        double z = rs.getDouble("dropped_z");
 
-                    long minutesElapsed = (now - droppedAt) / (1000 * 60);
+                        long minutesElapsed = (now - droppedAt) / (1000 * 60);
 
-                    // 1분 간격으로 체크하므로, 정확히 30, 60, 90, 120분이 되었을 때 딱 한 번 방송하도록 조건 설정
-                    if (minutesElapsed == 30) {
-                        broadcastHint(relicNum, world, x, y, z, 1);
-                    } else if (minutesElapsed == 60) {
-                        broadcastHint(relicNum, world, x, y, z, 2);
-                    } else if (minutesElapsed == 90) {
-                        broadcastHint(relicNum, world, x, y, z, 3);
-                    } else if (minutesElapsed == 120) {
-                        broadcastHint(relicNum, world, x, y, z, 4);
-                    } else if (minutesElapsed > 120 && minutesElapsed % 30 == 0) {
-                        // 120분 이후에는 30분마다 계속 제일 강력한 힌트(4단계) 방송
-                        broadcastHint(relicNum, world, x, y, z, 4);
+                        // 1분 간격으로 체크하므로, 정확히 30, 60, 90, 120분이 되었을 때 딱 한 번 방송하도록 조건 설정
+                        if (minutesElapsed == 30) {
+                            broadcastHint(relicNum, world, x, y, z, 1);
+                        } else if (minutesElapsed == 60) {
+                            broadcastHint(relicNum, world, x, y, z, 2);
+                        } else if (minutesElapsed == 90) {
+                            broadcastHint(relicNum, world, x, y, z, 3);
+                        } else if (minutesElapsed == 120) {
+                            broadcastHint(relicNum, world, x, y, z, 4);
+                        } else if (minutesElapsed > 120 && minutesElapsed % 30 == 0) {
+                            // 120분 이후에는 30분마다 계속 제일 강력한 힌트(4단계) 방송
+                            broadcastHint(relicNum, world, x, y, z, 4);
+                        }
                     }
                 }
+            } catch (SQLException e) {
+                plugin.getLogger().warning("방치된 유물 체크 중 데이터베이스 오류: " + e.getMessage());
             }
-        } catch (SQLException e) {
-            plugin.getLogger().warning("방치된 유물 체크 중 데이터베이스 오류: " + e.getMessage());
         }
     }
 
