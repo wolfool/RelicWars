@@ -27,17 +27,19 @@ public class RelicManager implements Manager {
     @Override
     public void initialize() {
         // DB에서 이미 스폰된 유물 로드
-        java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
-        if (conn != null) {
-            try (var stmt = conn.createStatement();
-                 var rs = stmt.executeQuery(
-                     "SELECT relic_number FROM relic_ownership WHERE state != 'unspawned'")) {
-                while (rs.next()) {
-                    spawnedRelics.add(rs.getInt("relic_number"));
+        synchronized (plugin.getDatabaseManager()) {
+            java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
+            if (conn != null) {
+                try (var stmt = conn.createStatement();
+                     var rs = stmt.executeQuery(
+                         "SELECT relic_number FROM relic_ownership WHERE state != 'unspawned'")) {
+                    while (rs.next()) {
+                        spawnedRelics.add(rs.getInt("relic_number"));
+                    }
+                    plugin.getLogger().info("§a[RelicWars] 스폰된 유물 " + spawnedRelics.size() + "개 로드 완료.");
+                } catch (Exception e) {
+                    plugin.getLogger().warning("[RelicWars] 스폰 이력 로드 실패: " + e.getMessage());
                 }
-                plugin.getLogger().info("§a[RelicWars] 스폰된 유물 " + spawnedRelics.size() + "개 로드 완료.");
-            } catch (Exception e) {
-                plugin.getLogger().warning("[RelicWars] 스폰 이력 로드 실패: " + e.getMessage());
             }
         }
 
@@ -84,9 +86,13 @@ public class RelicManager implements Manager {
             return false;
         }
 
-        player.getInventory().addItem(relic);
+        java.util.Map<Integer, ItemStack> overflow = player.getInventory().addItem(relic);
+        if (!overflow.isEmpty()) {
+            overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+            player.sendMessage("§e[RelicWars] 인벤토리가 가득 차서 유물이 바닥에 떨어졌습니다!");
+        }
         RelicDefinition def = RelicDefinition.getByNumber(relicNumber);
-        player.sendMessage("§a[RelicWars] " + def.getDisplayName() + " §a유물을 획득했습니다!");
+        if (def != null) player.sendMessage("§a[RelicWars] " + def.getDisplayName() + " §a유물을 획득했습니다!");
         return true;
     }
 

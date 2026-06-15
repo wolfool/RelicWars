@@ -115,39 +115,39 @@ public class SealedRelicManager implements Manager, Listener {
      * DB에서 state가 'sealed'인 유물을 찾아 복구합니다.
      */
     private void loadSealedRelicsFromDB() {
-        java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
-        if (conn == null) return;
-        
-        try {
-            String query = "SELECT relic_number, dropped_world, dropped_x, dropped_y, dropped_z, dropped_at FROM relic_ownership WHERE state = 'sealed'";
-            try (java.sql.PreparedStatement pstmt = conn.prepareStatement(query);
-                 java.sql.ResultSet rs = pstmt.executeQuery()) {
-                
-                while (rs.next()) {
-                    int relicNum = rs.getInt("relic_number");
-                    String worldName = rs.getString("dropped_world");
-                    if (worldName == null) continue;
+        synchronized (plugin.getDatabaseManager()) {
+            java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
+            if (conn == null) return;
+            
+            try {
+                String query = "SELECT relic_number, dropped_world, dropped_x, dropped_y, dropped_z, dropped_at FROM relic_ownership WHERE state = 'sealed'";
+                try (java.sql.PreparedStatement pstmt = conn.prepareStatement(query);
+                     java.sql.ResultSet rs = pstmt.executeQuery()) {
                     
-                    org.bukkit.World world = Bukkit.getWorld(worldName);
-                    if (world == null) continue;
-                    
-                    Location loc = new Location(world, rs.getDouble("dropped_x"), rs.getDouble("dropped_y"), rs.getDouble("dropped_z"));
-                    long droppedAt = rs.getLong("dropped_at");
-                    
-                    // DB에서 가져온 기본 봉인 시간 (config 값 임의 차용 혹은 기본 45초)
-                    // 실제로는 어떤 사유로 드랍되었는지 모르므로 기본값 45초 사용
-                    int defaultSeal = 45;
-                    long elapsedSeconds = (System.currentTimeMillis() - droppedAt) / 1000L;
-                    int timeLeft = Math.max(0, defaultSeal - (int) elapsedSeconds);
-                    
-                    ItemStack relic = plugin.getRelicManager().createRelic(relicNum);
-                    if (relic != null) {
-                        spawnSealedRelic(loc, relic, timeLeft);
+                    while (rs.next()) {
+                        int relicNum = rs.getInt("relic_number");
+                        String worldName = rs.getString("dropped_world");
+                        if (worldName == null) continue;
+                        
+                        org.bukkit.World world = Bukkit.getWorld(worldName);
+                        if (world == null) continue;
+                        
+                        Location loc = new Location(world, rs.getDouble("dropped_x"), rs.getDouble("dropped_y"), rs.getDouble("dropped_z"));
+                        long droppedAt = rs.getLong("dropped_at");
+                        
+                        int defaultSeal = 45;
+                        long elapsedSeconds = (System.currentTimeMillis() - droppedAt) / 1000L;
+                        int timeLeft = Math.max(0, defaultSeal - (int) elapsedSeconds);
+                        
+                        ItemStack relic = plugin.getRelicManager().createRelic(relicNum);
+                        if (relic != null) {
+                            spawnSealedRelic(loc, relic, timeLeft);
+                        }
                     }
                 }
+            } catch (java.sql.SQLException e) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "봉인 유물 복구 실패", e);
             }
-        } catch (java.sql.SQLException e) {
-            plugin.getLogger().log(java.util.logging.Level.WARNING, "봉인 유물 복구 실패", e);
         }
     }
 
