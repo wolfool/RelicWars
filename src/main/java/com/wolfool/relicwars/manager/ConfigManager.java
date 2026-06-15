@@ -59,7 +59,7 @@ public class ConfigManager {
     // --- 엔딩(Ending) ---
     private boolean endingRequiredAllSpawned;
     private int endingRequiredTeamRelics;
-    private int altarDefenseMinutes;
+    // altarDefenseMinutes 제거 — EndingManager가 직접 config에서 점령전 설정 로드
 
     // --- 추가 캐시된 값 ---
     private int maxRelicStealsPerDowned;
@@ -146,7 +146,7 @@ public class ConfigManager {
         // --- 엔딩 ---
         endingRequiredAllSpawned = config.getBoolean("ending.required-all-spawned", true);
         endingRequiredTeamRelics = config.getInt("ending.required-team-relics-to-summon", 10);
-        altarDefenseMinutes = config.getInt("ending.altar-defense-minutes", 30);
+        // 점령전 설정은 EndingManager가 직접 로드
 
         // --- 추가 캐시 ---
         maxRelicStealsPerDowned = config.getInt("combat.max-relic-steals", 3);
@@ -214,7 +214,7 @@ public class ConfigManager {
     // --- 엔딩 ---
     public boolean isEndingRequiredAllSpawned() { return endingRequiredAllSpawned; }
     public int getEndingRequiredTeamRelics() { return endingRequiredTeamRelics; }
-    public int getAltarDefenseMinutes() { return altarDefenseMinutes; }
+    // getAltarDefenseMinutes() 제거 — EndingManager가 직접 관리
     public int getMaxRelicStealsPerDowned() { return maxRelicStealsPerDowned; }
     public int getMaxRelicsPerTeam() { return maxRelicsPerTeam; }
 }

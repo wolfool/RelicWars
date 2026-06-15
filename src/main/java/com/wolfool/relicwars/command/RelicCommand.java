@@ -52,6 +52,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 sendHelpMessage(sender, "/relic checkowner <유물번호|all>", "유물 소유자 확인 (관리자용)");
                 sendHelpMessage(sender, "/relic spawnsealed <유물번호>", "테스트용: 유물을 봉인된 상태로 바닥에 소환");
                 sendHelpMessage(sender, "/relic resetstate <유물번호|all>", "유물을 강제로 DB에서 초기화 (미스폰 상태)");
+                sendHelpMessage(sender, "/relic altar <start|stop|status>", "엔딩 제단 이벤트 관리");
             }
             sendHelpMessage(sender, "/relic transfer <팀원>", "유물 양도 (5초 대기 필요)");
             sender.sendMessage("§6§l=========================================");
@@ -298,6 +299,50 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        // ======================== 엔딩 제단 관리 ========================
+        if (args[0].equalsIgnoreCase("altar") && sender.hasPermission("relicwars.admin")) {
+            if (args.length < 2) {
+                sender.sendMessage("§c사용법: /relic altar <start|stop|status>");
+                return true;
+            }
+            var endingManager = plugin.getEndingManager();
+            switch (args[1].toLowerCase()) {
+                case "start" -> {
+                    if (endingManager.isCaptureActive()) {
+                        sender.sendMessage("§c[엔딩] 이미 점령전이 진행 중입니다.");
+                    } else {
+                        endingManager.forceStart();
+                        sender.sendMessage("§a[엔딩] 엔딩 제단 점령전을 강제 시작합니다.");
+                    }
+                }
+                case "stop" -> {
+                    if (!endingManager.isCaptureActive()) {
+                        sender.sendMessage("§c[엔딩] 현재 진행 중인 점령전이 없습니다.");
+                    } else {
+                        endingManager.stopCapture(false);
+                        endingManager.resetEnding();
+                        sender.sendMessage("§a[엔딩] 엔딩 제단 점령전을 중단하고 초기화했습니다.");
+                    }
+                }
+                case "status" -> {
+                    sender.sendMessage("§e======== [엔딩 제단 상태] ========");
+                    sender.sendMessage("§7점령전 활성: " + (endingManager.isCaptureActive() ? "§a예" : "§c아니오"));
+                    sender.sendMessage("§7엔딩 트리거: " + (endingManager.isEndingTriggered() ? "§a예" : "§c아니오"));
+                    if (endingManager.isCaptureActive()) {
+                        int percent = Math.round(endingManager.getCaptureProgress() * 100);
+                        sender.sendMessage("§7점령 게이지: §e" + percent + "%");
+                        org.bukkit.Location loc = endingManager.getAltarLocation();
+                        if (loc != null) {
+                            sender.sendMessage("§7제단 좌표: §f" + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ());
+                        }
+                    }
+                    sender.sendMessage("§e================================");
+                }
+                default -> sender.sendMessage("§c사용법: /relic altar <start|stop|status>");
+            }
+            return true;
+        }
+
         if (args[0].equalsIgnoreCase("transfer")) {
             if (!(sender instanceof Player player)) return true;
             if (args.length < 2) {
@@ -389,6 +434,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 completions.add("checkowner");
                 completions.add("spawnsealed");
                 completions.add("resetstate");
+                completions.add("altar");
             }
             completions.add("transfer");
         } else if (args.length == 2) {
@@ -400,6 +446,10 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
             for (int i = 1; i <= 30; i++) {
                 completions.add(String.valueOf(i));
             }
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("altar") && sender.hasPermission("relicwars.admin")) {
+            completions.add("start");
+            completions.add("stop");
+            completions.add("status");
         }
         return completions;
     }

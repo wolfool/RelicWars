@@ -84,5 +84,9 @@ event:
 # --- 엔딩(Ending) 설정 ---
 ending:
   required-all-spawned: true     # 30개 유물이 모두 1번 이상 등장해야 하는지
-  required-team-relics-to-summon: 10  # 최종 보스 소환을 위해 한 팀이 보유해야 하는 유물 개수
-  altar-defense-minutes: 30      # 제단 방어 시간 (분)
+  required-team-relics-to-summon: 10  # 엔딩 발동을 위해 한 팀이 보유해야 하는 유물 개수
+  # --- 점령전 설정 ---
+  altar-radius: 15               # 제단 점령 반경 (블록)
+  capture-rate-per-player: 1.0   # 팀원 1명당 초당 게이지 상승 (%)
+  decay-rate-empty: 0.5          # 비어있을 때 초당 게이지 감소 (%)
+  decay-rate-enemy: 2.0          # 적만 있을 때 초당 게이지 감소 (%)

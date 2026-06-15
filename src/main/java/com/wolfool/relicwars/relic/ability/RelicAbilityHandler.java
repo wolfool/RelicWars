@@ -1168,16 +1168,16 @@ public class RelicAbilityHandler implements Listener {
         player.teleport(targetLoc);
         player.getWorld().spawnParticle(org.bukkit.Particle.PORTAL, targetLoc, 50, 0.5, 1.0, 0.5, 0.1);
         player.getWorld().playSound(targetLoc, org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
-        player.sendMessage("§d[차원 도약석] 도약했습니다! 5초 내에 다시 사용하면 복귀합니다.");
+        player.sendMessage("§d[차원 도약석] 도약했습니다! 15초 내에 다시 사용하면 복귀합니다.");
 
-        // 5초 타이머
+        // 15초 타이머
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             LeapData data = active006Leap.remove(id);
             if (data != null) {
                 if (!data.hologram.isDead()) data.hologram.remove();
                 if (player.isOnline()) player.sendMessage("§c[차원 도약석] 복귀 시간이 초과되었습니다.");
             }
-        }, 100L); // 5초
+        }, 300L); // 15초
         return true;
     }
     
@@ -1358,32 +1358,12 @@ public class RelicAbilityHandler implements Listener {
     }
 
 
-    // #005 불멸의 심장 — 패시브: 다운 무시 1회 (MVP: 액티브로 대체)
+    // #005 불멸의 심장 — 완전 패시브 유물 (우클릭 시 안내만)
     private boolean execute005(Player player) {
-        player.sendMessage("§6[불멸의 심장] 다음 치명상을 1회 무시합니다! (90분 쿨타임)");
-        player.sendMessage("§7  체력이 0이 되어야 할 순간 체력 100%로 부활하며 주변 적을 밀쳐냅니다.");
-
-        UUID id = player.getUniqueId();
-        active005DamageReduction.add(id); // 전용 Set 사용
-
-        // 8초간 받는 데미지 50% 감소 (160틱 후 자동 해제)
-        player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 160, 1, false, false));
-        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            active005DamageReduction.remove(id);
-            if (player.isOnline()) player.sendMessage("§c[불멸의 심장] 데미지 감소 효과가 종료되었습니다.");
-        }, 160L);
-
-        // 주변 적 밀쳐내기
-        for (Entity e : player.getNearbyEntities(8, 8, 8)) {
-            if (!(e instanceof Player p)) continue;
-            if (plugin.getTeamManager().isSameTeam(player, p)) continue;
-            Vector knockback = p.getLocation().toVector().subtract(player.getLocation().toVector()).normalize().multiply(2.5).setY(0.8);
-            p.setVelocity(knockback);
-        }
-
-        // 황금 충격파 효과
-        player.getWorld().strikeLightningEffect(player.getLocation());
-        return true;
+        player.sendMessage("§6[불멸의 심장] 이 유물은 패시브 유물입니다.");
+        player.sendMessage("§7  치명상을 입을 때 자동으로 발동하여 체력을 회복하고 적을 밀쳐냅니다.");
+        player.sendMessage("§7  쿨타임: 10분 | 정신력 소모: 30");
+        return false; // 패시브 — 쿨타임/정신력 소모 없음
     }
 
     // ======================== Batch 6: #004 ~ #001 ========================
