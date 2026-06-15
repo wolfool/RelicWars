@@ -66,11 +66,28 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            // "all" 처리: 모든 유물 일괄 지급
+            if (args[2].equalsIgnoreCase("all")) {
+                int given = 0;
+                for (int i = 1; i <= 30; i++) {
+                    RelicDefinition def = RelicDefinition.getByNumber(i);
+                    if (def == null) continue;
+                    String currentState = plugin.getDatabaseManager().getRelicState(i);
+                    if (!currentState.equals("unspawned")) continue;
+                    ItemStack relic = com.wolfool.relicwars.relic.RelicItemUtil.createRelicItem(def);
+                    target.getInventory().addItem(relic);
+                    plugin.getDatabaseManager().updateRelicState(i, "held", target.getUniqueId().toString(), target.getLocation());
+                    given++;
+                }
+                sender.sendMessage("§a[RelicWars] " + target.getName() + "님에게 유물 " + given + "개를 일괄 지급했습니다.");
+                return true;
+            }
+
             try {
                 int number = Integer.parseInt(args[2]);
                 RelicDefinition def = RelicDefinition.getByNumber(number);
                 if (def == null) {
-                    sender.sendMessage("§c존재하지 않는 유물 번호입니다. (1~30)");
+                    sender.sendMessage("§c존재하지 않는 유물 번호입니다. (1~30 또는 all)");
                     return true;
                 }
 
@@ -85,7 +102,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 plugin.getDatabaseManager().updateRelicState(number, "held", target.getUniqueId().toString(), target.getLocation());
                 sender.sendMessage("§a[RelicWars] " + target.getName() + "님에게 " + def.getName() + " 유물을 지급했습니다.");
             } catch (NumberFormatException e) {
-                sender.sendMessage("§c숫자를 입력하세요.");
+                sender.sendMessage("§c숫자 또는 'all'을 입력하세요.");
             }
             return true;
         }
@@ -376,6 +393,7 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 completions.add(p.getName());
             }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("give") && sender.hasPermission("relicwars.admin")) {
+            completions.add("all");
             for (int i = 1; i <= 30; i++) {
                 completions.add(String.valueOf(i));
             }

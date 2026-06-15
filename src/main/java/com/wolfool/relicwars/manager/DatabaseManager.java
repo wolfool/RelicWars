@@ -87,15 +87,51 @@ public class DatabaseManager {
                     relic_number INTEGER PRIMARY KEY,
                     owner_uuid TEXT,
                     state TEXT DEFAULT 'unspawned',
-                    location_world TEXT,
-                    location_x REAL,
-                    location_y REAL,
-                    location_z REAL,
+                    dropped_world TEXT,
+                    dropped_x REAL,
+                    dropped_y REAL,
+                    dropped_z REAL,
                     dropped_at INTEGER
                 )
             """);
 
+            // 기존 DB 마이그레이션: location_* → dropped_* 컬럼 변환
+            migrateColumns(stmt);
+
             plugin.getLogger().info("§a[RelicWars] 데이터베이스 테이블 초기화 완료.");
+        }
+    }
+
+    /**
+     * 기존 DB의 location_* 컬럼을 dropped_*로 마이그레이션합니다.
+     * SQLite는 ALTER TABLE RENAME COLUMN을 지원하므로 컬럼명을 직접 변경합니다.
+     * 이미 dropped_* 컬럼이 있으면 아무것도 하지 않습니다.
+     */
+    private void migrateColumns(Statement stmt) {
+        try {
+            // dropped_world 컬럼이 이미 존재하는지 확인
+            var rs = stmt.executeQuery("PRAGMA table_info(relic_ownership)");
+            boolean hasDroppedWorld = false;
+            boolean hasLocationWorld = false;
+            while (rs.next()) {
+                String colName = rs.getString("name");
+                if ("dropped_world".equals(colName)) hasDroppedWorld = true;
+                if ("location_world".equals(colName)) hasLocationWorld = true;
+            }
+            rs.close();
+
+            if (hasDroppedWorld) return; // 이미 마이그레이션 완료
+
+            if (hasLocationWorld) {
+                // 구 스키마 → 신 스키마 컬럼명 변경
+                stmt.executeUpdate("ALTER TABLE relic_ownership RENAME COLUMN location_world TO dropped_world");
+                stmt.executeUpdate("ALTER TABLE relic_ownership RENAME COLUMN location_x TO dropped_x");
+                stmt.executeUpdate("ALTER TABLE relic_ownership RENAME COLUMN location_y TO dropped_y");
+                stmt.executeUpdate("ALTER TABLE relic_ownership RENAME COLUMN location_z TO dropped_z");
+                plugin.getLogger().info("§a[RelicWars] DB 마이그레이션 완료: location_* → dropped_*");
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(java.util.logging.Level.WARNING, "DB 마이그레이션 실패 (무시 가능)", e);
         }
     }
 
