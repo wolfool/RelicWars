@@ -234,14 +234,16 @@ public class EndingManager implements Manager {
         }
 
         if (alliesInRange > 0 && enemiesInRange == 0) {
+            // 아군만 → 점령 진행 (인원수 비례)
             captureProgress += (captureRatePerPlayer * alliesInRange) / 100.0f;
         } else if (alliesInRange > 0 && enemiesInRange > 0) {
-            if (enemiesInRange > alliesInRange) {
-                captureProgress -= decayRateEmpty / 100.0f;
-            }
+            // 양쪽 다 → CONTESTED! 완전 정지 (오버워치 방식)
+            // 아무 변동 없음 — 전투로 해결해야 함
         } else if (alliesInRange == 0 && enemiesInRange > 0) {
-            captureProgress -= decayRateEnemy / 100.0f;
+            // 적만 → 게이지 감소 (인원수 비례)
+            captureProgress -= (decayRateEnemy * enemiesInRange) / 100.0f;
         } else {
+            // 아무도 없음 → 느린 감소
             captureProgress -= decayRateEmpty / 100.0f;
         }
 
@@ -249,9 +251,20 @@ public class EndingManager implements Manager {
 
         updateBossBar(alliesInRange, enemiesInRange);
 
+        // 파티클 효과 (3초마다)
         if (Bukkit.getCurrentTick() % 60 == 0) {
             altarLocation.getWorld().spawnParticle(Particle.END_ROD, altarLocation.clone().add(0, 3, 0), 30, 2, 3, 2, 0.05);
             altarLocation.getWorld().playSound(altarLocation, Sound.BLOCK_BEACON_AMBIENT, 0.5f, 1.0f);
+        }
+
+        // CONTESTED 사운드 (양쪽 다 있을 때, 5초마다)
+        if (alliesInRange > 0 && enemiesInRange > 0 && Bukkit.getCurrentTick() % 100 == 0) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (!p.getWorld().equals(altarLocation.getWorld())) continue;
+                if (p.getLocation().distanceSquared(altarLocation) <= (double) altarRadius * altarRadius * 4) {
+                    p.playSound(p.getLocation(), Sound.BLOCK_BELL_USE, 1.0f, 0.5f);
+                }
+            }
         }
 
         if (captureProgress >= 1.0f) {
@@ -281,7 +294,7 @@ public class EndingManager implements Manager {
             statusText = "\u00a7a\u25b2 \uc810\ub839 \uc911";
             color = BossBar.Color.GREEN;
         } else if (allies > 0 && enemies > 0) {
-            statusText = "\u00a7c\u2694 \uad50\uc804 \uc911";
+            statusText = "§c§l⚡ CONTESTED!";
             color = BossBar.Color.RED;
         } else if (enemies > 0) {
             statusText = "\u00a74\u25bc \uc801 \uce68\ud22c";

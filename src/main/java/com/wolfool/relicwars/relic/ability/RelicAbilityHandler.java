@@ -100,6 +100,23 @@ public class RelicAbilityHandler implements Listener {
         this.plugin = plugin;
     }
 
+    /** 잘못 사용한 유물의 쿨타임을 리셋합니다 (아이템 PDC 기반) */
+    public void resetCooldownForRelic(Player player, int relicNumber) {
+        for (org.bukkit.inventory.ItemStack item : player.getInventory().getContents()) {
+            if (item != null && com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)
+                    && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(item) == relicNumber) {
+                // PDC 쿨타임 제거
+                org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+                if (meta != null) {
+                    meta.getPersistentDataContainer().remove(
+                            new org.bukkit.NamespacedKey(plugin, "cooldown_until"));
+                    item.setItemMeta(meta);
+                }
+                break;
+            }
+        }
+    }
+
     public boolean execute(Player player, RelicDefinition def) {
         int num = def.getNumber();
         
@@ -1433,6 +1450,25 @@ public class RelicAbilityHandler implements Listener {
     public void start003Tracker(Player player, int targetNum) {
         com.wolfool.relicwars.relic.RelicDefinition def = com.wolfool.relicwars.relic.RelicDefinition.getByNumber(targetNum);
         if (def == null) { player.sendMessage("§c[절대 좌표 나침반] 유효하지 않은 유물 번호입니다."); return; }
+
+        // 자기 자신 또는 팀원이 소유 중인 유물이면 캔슬 (쿨타임 소모 X)
+        String ownerUuid = plugin.getDatabaseManager().getRelicOwner(targetNum);
+        if (ownerUuid != null) {
+            UUID ownerId = UUID.fromString(ownerUuid);
+            if (ownerId.equals(player.getUniqueId())) {
+                player.sendMessage("§c[절대 좌표 나침반] 자신이 소유한 유물은 추적할 수 없습니다.");
+                // 쿨타임 소모 방지를 위해 쿨타임 리셋
+                resetCooldownForRelic(player, 3);
+                return;
+            }
+            Player ownerPlayer = Bukkit.getPlayer(ownerId);
+            if (ownerPlayer != null && plugin.getTeamManager().isSameTeam(player, ownerPlayer)) {
+                player.sendMessage("§c[절대 좌표 나침반] 같은 팀원이 소유한 유물은 추적할 수 없습니다.");
+                resetCooldownForRelic(player, 3);
+                return;
+            }
+        }
+
         player.sendMessage("§d[절대 좌표 나침반] §e" + def.getName() + "§d의 좌표 추적을 시작합니다. (3분간 유지)");
 
         new BukkitRunnable() {
