@@ -85,7 +85,7 @@ public class CombatListener implements Listener {
 
         // #029 낙하 데미지 면역 체크
         if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
-            if (plugin.getRelicAbilityHandler().active029FallImmunity.contains(player.getUniqueId())) {
+            if (plugin.getRelicAbilityHandler().isFallImmune(player.getUniqueId())) {
                 event.setCancelled(true);
                 return;
             }
@@ -105,12 +105,12 @@ public class CombatListener implements Listener {
         }
 
         // #023 사냥꾼의 표식 10% 추가 피해
-        if (plugin.getRelicAbilityHandler().active023Marked.contains(player.getUniqueId())) {
+        if (plugin.getRelicAbilityHandler().isMarked(player.getUniqueId())) {
             event.setDamage(event.getDamage() * 1.1);
         }
 
         // #015 캐스팅 중 피격 시 취소
-        if (plugin.getRelicAbilityHandler().active015Casting.remove(player.getUniqueId())) {
+        if (plugin.getRelicAbilityHandler().cancelCasting(player.getUniqueId())) {
             player.sendMessage("§c[회수자의 갈고리] 피격당해 캐스팅이 취소되었습니다.");
         }
 
@@ -124,42 +124,16 @@ public class CombatListener implements Listener {
                 return;
             }
 
-            // #005 불멸의 심장 패시브 발동 체크
-            org.bukkit.inventory.ItemStack heartRelic = null;
+            // #005 불멸의 심장 패시브 발동 체크 (AbilityHandler에 위임)
+            boolean has005 = false;
             for (org.bukkit.inventory.ItemStack item : player.getInventory().getContents()) {
                 if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item) && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(item) == 5) {
-                    heartRelic = item;
+                    has005 = true;
                     break;
                 }
             }
-
-            if (heartRelic != null && !plugin.getRelicManager().isOnCooldown(player, 5)) {
+            if (has005 && plugin.getRelicAbilityHandler().trigger005ImmortalHeart(player)) {
                 event.setCancelled(true);
-                
-                // 쿨타임 및 정신력 소모
-                plugin.getRelicManager().setCooldown(player, 5); // 90분
-                plugin.getSanityManager().removeSanity(player, 30);
-                
-                // 체력 100% 회복
-                player.setHealth(java.util.Objects.requireNonNull(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)).getValue());
-                player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE, 160, 1, false, false));
-                
-                player.sendMessage("§6[불멸의 심장] 죽음을 극복하고 부활했습니다!");
-                org.bukkit.Bukkit.broadcast(net.kyori.adventure.text.Component.text("§6[경고] X:" + player.getLocation().getBlockX() + " 부근에서 강력한 불멸의 기운이 감지되었습니다!"));
-                
-                player.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, player.getLocation(), 100, 1, 1, 1, 0.5);
-                player.getWorld().playSound(player.getLocation(), org.bukkit.Sound.ITEM_TOTEM_USE, 1.0f, 1.0f);
-                
-                // 반경 8블록 적 넉백
-                for (org.bukkit.entity.Entity e : player.getNearbyEntities(8, 8, 8)) {
-                    if (e instanceof Player p && !plugin.getTeamManager().isSameTeam(player, p)) {
-                        org.bukkit.util.Vector knockback = p.getLocation().toVector().subtract(player.getLocation().toVector());
-                        if (knockback.lengthSquared() == 0) knockback = new org.bukkit.util.Vector(0, 1, 0);
-                        else knockback = knockback.normalize().multiply(2.5).setY(0.8);
-                        p.setVelocity(knockback);
-                        p.sendMessage("§e[불멸의 심장] 거대한 황금빛 충격파에 밀려났습니다!");
-                    }
-                }
                 return;
             }
 
@@ -218,7 +192,7 @@ public class CombatListener implements Listener {
         if (!combatManager.isDowned(target)) return;
 
         // #010 EMP 체크
-        if (plugin.getRelicAbilityHandler().active010EMP.contains(stealer.getUniqueId())) {
+        if (plugin.getRelicAbilityHandler().isEmpAffected(stealer.getUniqueId())) {
             stealer.sendMessage("§c[EMP] 기능이 마비되어 상호작용할 수 없습니다!");
             return;
         }
@@ -324,7 +298,7 @@ public class CombatListener implements Listener {
 
         if (combatManager.isDowned(target) && !combatManager.isDowned(rescuer)) {
             // #010 EMP 체크
-            if (plugin.getRelicAbilityHandler().active010EMP.contains(rescuer.getUniqueId())) {
+            if (plugin.getRelicAbilityHandler().isEmpAffected(rescuer.getUniqueId())) {
                 rescuer.sendMessage("§c[EMP] 기능이 마비되어 상호작용할 수 없습니다!");
                 return;
             }
@@ -353,8 +327,8 @@ public class CombatListener implements Listener {
         
         // #025 최후의 봉합 구조 시간 단축 체크
         int reviveSeconds = plugin.getConfigManager().getReviveSeconds();
-        if (plugin.getRelicAbilityHandler().active025FastRevive.contains(rescuer.getUniqueId()) ||
-            plugin.getRelicAbilityHandler().active025FastRevive.contains(target.getUniqueId())) {
+        if (plugin.getRelicAbilityHandler().isFastRevive(rescuer.getUniqueId()) ||
+            plugin.getRelicAbilityHandler().isFastRevive(target.getUniqueId())) {
             reviveSeconds = 2; // 8초 -> 2초로 대폭 단축
             rescuer.sendMessage("§d[최후의 봉합] §5구조 시간이 대폭 단축됩니다!");
         }
@@ -424,8 +398,8 @@ public class CombatListener implements Listener {
                     }
                     
                     // #025 최후의 봉합 도주 버프
-                    if (plugin.getRelicAbilityHandler().active025FastRevive.contains(rescuer.getUniqueId()) ||
-                        plugin.getRelicAbilityHandler().active025FastRevive.contains(target.getUniqueId())) {
+                    if (plugin.getRelicAbilityHandler().isFastRevive(rescuer.getUniqueId()) ||
+                        plugin.getRelicAbilityHandler().isFastRevive(target.getUniqueId())) {
                         
                         target.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SPEED, 200, 1, false, false));
                         target.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE, 100, 0, false, false));

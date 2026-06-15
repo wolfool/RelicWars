@@ -148,16 +148,17 @@ public enum RelicDefinition {
     public String getDisplayName() { return displayName; }
     public String getLoreDescription() { return loreDescription; }
 
+    // O(1) 조회를 위한 번호 → 정의 맵
+    private static final java.util.Map<Integer, RelicDefinition> BY_NUMBER = new java.util.HashMap<>();
+    static { for (RelicDefinition d : values()) BY_NUMBER.put(d.number, d); }
+
     /**
      * 유물 번호로 RelicDefinition을 찾습니다.
      * @param number 유물 번호 (0~30)
      * @return 해당 유물 정의, 없으면 null
      */
     public static RelicDefinition getByNumber(int number) {
-        for (RelicDefinition def : values()) {
-            if (def.number == number) return def;
-        }
-        return null;
+        return BY_NUMBER.get(number);
     }
 
     /**

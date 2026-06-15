@@ -176,7 +176,7 @@ public class RelicListener implements Listener {
         Inventory topInventory = event.getView().getTopInventory();
 
         // 소문의 등불 GUI 처리
-        if (event.getView().getTitle().equals("§5소문의 등불")) {
+        if (event.getView().getTitle().equals(com.wolfool.relicwars.relic.ability.RelicAbilityHandler.GUI_TITLE_020)) {
             event.setCancelled(true);
             if (event.getClickedInventory() == topInventory) {
                 int slot = event.getSlot();
@@ -192,7 +192,7 @@ public class RelicListener implements Listener {
         }
         
         // 봉인의 바늘 GUI 처리
-        if (event.getView().getTitle().equals("§3봉인의 바늘")) {
+        if (event.getView().getTitle().equals(com.wolfool.relicwars.relic.ability.RelicAbilityHandler.GUI_TITLE_019)) {
             event.setCancelled(true);
             if (event.getClickedInventory() == topInventory) {
                 int slot = event.getSlot();

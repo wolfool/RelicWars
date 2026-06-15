@@ -35,6 +35,10 @@ import org.bukkit.event.player.PlayerToggleFlightEvent;
 public class RelicAbilityHandler implements Listener {
 
     private final RelicWars plugin;
+
+    // GUI 타이틀 상수 (RelicListener와 공유)
+    public static final String GUI_TITLE_020 = "§5소문의 등불";
+    public static final String GUI_TITLE_019 = "§3봉인의 바늘";
     
     public final Set<UUID> active001Omega = new HashSet<>();
     public final Set<UUID> active005DamageReduction = new HashSet<>();
@@ -50,6 +54,15 @@ public class RelicAbilityHandler implements Listener {
     public final Map<String, Location> active017Anchor = new HashMap<>(); // 팀ID(또는 UUID) -> 왜곡장 위치
     public final Set<UUID> active015Casting = new HashSet<>(); // #015 캐스팅 중인 플레이어
     public final Set<UUID> active010EMP = new HashSet<>(); // #010 EMP에 당한 플레이어
+
+    // === 외부 읽기용 접근자 (CombatListener 등에서 사용) ===
+    public boolean isFallImmune(UUID id) { return active029FallImmunity.contains(id); }
+    public boolean isMarked(UUID id) { return active023Marked.contains(id); }
+    public boolean isCasting(UUID id) { return active015Casting.contains(id); }
+    public boolean cancelCasting(UUID id) { return active015Casting.remove(id); }
+    public boolean isEmpAffected(UUID id) { return active010EMP.contains(id); }
+    public boolean isFastRevive(UUID id) { return active025FastRevive.contains(id); }
+    public boolean isShadowActive(UUID id) { return active008Shadow.contains(id); }
     
     // Batch 4 추가
     public final Set<UUID> active008Shadow = new HashSet<>(); // #008 그림자 막 (탐지 면역)
@@ -585,7 +598,7 @@ public class RelicAbilityHandler implements Listener {
 
     // #020 소문의 등불 — 4가지 옵션 중 하나를 선택하는 GUI 오픈
     private boolean execute020(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 9, Component.text("§5소문의 등불"));
+        Inventory inv = Bukkit.createInventory(null, 9, Component.text(GUI_TITLE_020));
 
         inv.setItem(3, createGuiItem(Material.ENDER_EYE, "§5[봉인 유물 스캔]", "§7현재 바닥에 봉인된", "§7유물들의 위치를 파악합니다."));
         inv.setItem(5, createGuiItem(Material.NAME_TAG, "§e[소유자 검색 모드]", "§7특정 번호의 유물을 누가", "§7가졌는지 알아낼 수 있는 검색 모드를 켭니다."));
@@ -676,7 +689,7 @@ public class RelicAbilityHandler implements Listener {
         }
         
         pending019Relic.put(player.getUniqueId(), nearest);
-        Inventory inv = Bukkit.createInventory(null, 9, Component.text("§3봉인의 바늘"));
+        Inventory inv = Bukkit.createInventory(null, 9, Component.text(GUI_TITLE_019));
         inv.setItem(3, createGuiItem(Material.SUGAR, "§a[시간 단축]", "§7해당 유물의 남은 봉인 시간을", "§7§l절반§7으로 단축합니다."));
         inv.setItem(5, createGuiItem(Material.CLOCK, "§c[시간 연장]", "§7해당 유물의 남은 봉인 시간을", "§7§l2배§7로 연장합니다."));
         
@@ -1334,8 +1347,12 @@ public class RelicAbilityHandler implements Listener {
         UUID id = player.getUniqueId();
         active005DamageReduction.add(id); // 전용 Set 사용
 
-        // 8초간 받는 데미지 50% 감소
+        // 8초간 받는 데미지 50% 감소 (160틱 후 자동 해제)
         player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 160, 1, false, false));
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            active005DamageReduction.remove(id);
+            if (player.isOnline()) player.sendMessage("§c[불멸의 심장] 데미지 감소 효과가 종료되었습니다.");
+        }, 160L);
 
         // 주변 적 밀쳐내기
         for (Entity e : player.getNearbyEntities(8, 8, 8)) {
