@@ -110,6 +110,8 @@ public class RelicListener implements Listener {
 
         // 바닐라 동작(아이템 던지기, 먹기, 블록 설치 등)을 완벽히 차단하여 유물이 소진되는 것을 방지합니다.
         event.setCancelled(true);
+        event.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+        event.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
 
         // 다운 상태에서는 유물 능력 사용 불가
         if (plugin.getCombatManager().isDowned(player)) {
@@ -128,15 +130,15 @@ public class RelicListener implements Listener {
             return;
         }
 
-        // --- 능력 발동 (Phase 6에서 각 유물별로 구현) ---
-        if (def.getCooldownSeconds() > 0) {
+        // --- 능력 발동 ---
+        // execute()가 true를 반환하면 성공 → 쿨타임 시작
+        // false를 반환하면 실패 (대상 없음 등) → 쿨타임 미적용
+        boolean success = plugin.getRelicAbilityHandler().execute(player, def);
+        if (success && def.getCooldownSeconds() > 0) {
             com.wolfool.relicwars.relic.RelicItemUtil.startCooldown(item, def.getCooldownSeconds());
             player.sendMessage("§a[RelicWars] " + def.getDisplayName() +
                     " §a능력 발동! (쿨타임: §e" +
                     com.wolfool.relicwars.relic.RelicItemUtil.formatCooldown(def.getCooldownSeconds()) + "§a)");
-
-            // 유물 스킬 실행
-            plugin.getRelicAbilityHandler().execute(player, def);
         }
     }
 

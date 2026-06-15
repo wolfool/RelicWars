@@ -71,30 +71,32 @@ public class RelicAbilityHandler implements Listener {
         this.plugin = plugin;
     }
 
-    public void execute(Player player, RelicDefinition def) {
+    public boolean execute(Player player, RelicDefinition def) {
         int num = def.getNumber();
         
         // EMP 상태 체크
         if (active010EMP.contains(player.getUniqueId())) {
             player.sendMessage("§c[EMP] 기능이 마비되어 유물을 사용할 수 없습니다!");
-            return;
+            return false;
         }
 
         // #006 재사용(복귀) 체크 (쿨타임/정신력 소모 무시)
         if (num == 6 && active006Leap.containsKey(player.getUniqueId())) {
             execute006Return(player);
-            return;
+            return false; // 쿨타임 이미 돌고 있으므로 false
         }
 
-        // 정신력 소모 체크 (3단계: 10, 4단계: 20, 5단계: 30)
+        // 정신력 부족 시 사전 차단 (실제 소모는 성공 후에만)
         int sanityCost = getSanityCost(num, player);
         if (sanityCost > 0) {
-            if (!plugin.getSanityManager().consumeSanity(player, sanityCost)) {
-                return; // 정신력 부족
+            if (plugin.getSanityManager().getSanity(player) < sanityCost) {
+                player.sendMessage("§c[RelicWars] 정신력이 부족합니다! (필요: " + sanityCost + ", 현재: " + plugin.getSanityManager().getSanity(player) + ")");
+                return false;
             }
         }
 
-        switch (num) {
+        // 능력 실행 시도 (실패 가능성이 있는 유물은 여기서 실패하면 false 반환)
+        boolean success = switch (num) {
             case 30 -> execute030(player);
             case 29 -> execute029(player);
             case 28 -> execute028(player);
@@ -125,16 +127,26 @@ public class RelicAbilityHandler implements Listener {
             case 3 -> execute003(player);
             case 2 -> execute002(player);
             case 1 -> execute001(player);
-            default -> player.sendMessage("§c[RelicWars] 유물 #" + num + " 스킬은 아직 구현되지 않았습니다.");
+            default -> {
+                player.sendMessage("§c[RelicWars] 유물 #" + num + " 스킬은 아직 구현되지 않았습니다.");
+                yield false;
+            }
+        };
+
+        // 성공한 경우에만 정신력 소모
+        if (success && sanityCost > 0) {
+                plugin.getSanityManager().removeSanity(player, sanityCost);
         }
+
+        return success;
     }
 
     // #030 낙뢰의 심지
-    private void execute030(Player player) {
+    private boolean execute030(Player player) {
         Block targetBlock = player.getTargetBlockExact(50);
         if (targetBlock == null) {
             player.sendMessage("§c[RelicWars] 타겟 블록이 너무 멀거나 없습니다!");
-            return;
+            return false;
         }
         
         Location strikeLoc = targetBlock.getLocation();
@@ -162,10 +174,11 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }, 30L); // 1.5초 (30틱)
+        return true;
     }
 
     // #029 추락왕의 깃털
-    private void execute029(Player player) {
+    private boolean execute029(Player player) {
         player.sendMessage("§e[RelicWars] 15초간 낙하 데미지 면역 및 허공에서 이단 점프 가능!");
         
         UUID id = player.getUniqueId();
@@ -195,6 +208,7 @@ public class RelicAbilityHandler implements Listener {
                 player.sendMessage("§c[RelicWars] 추락왕의 깃털 효과가 종료되었습니다.");
             }
         }, 300L); // 15초
+        return true;
     }
 
     @EventHandler
@@ -213,7 +227,7 @@ public class RelicAbilityHandler implements Listener {
     }
 
     // #028 심해의 폐
-    private void execute028(Player player) {
+    private boolean execute028(Player player) {
         player.sendMessage("§b[RelicWars] 3분간 수중 호흡 버프 및 발밑 물 웅덩이 생성!");
         
         player.addPotionEffect(new PotionEffect(PotionEffectType.WATER_BREATHING, 3600, 0, false, false));
@@ -257,10 +271,11 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }.runTaskTimer(plugin, 0L, 5L);
+        return true;
     }
 
     // #027 용암의 눈
-    private void execute027(Player player) {
+    private boolean execute027(Player player) {
         player.sendMessage("§c[RelicWars] 15초간 화염 면역 및 용암 보행 발동!");
         
         com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] %s쪽에서 불길이 치솟는 열기가 느껴집니다.");
@@ -302,10 +317,11 @@ public class RelicAbilityHandler implements Listener {
             active027FireImmunity.remove(id);
             if (player.isOnline()) player.sendMessage("§c[RelicWars] 화염 면역이 종료되었습니다.");
         }, 300L);
+        return true;
     }
 
     // #026 어둠매듭
-    private void execute026(Player player) {
+    private boolean execute026(Player player) {
         player.sendMessage("§8[RelicWars] 10초간 어둠 속에 숨어듭니다...");
         player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 200, 0, false, false));
         
@@ -328,12 +344,13 @@ public class RelicAbilityHandler implements Listener {
                 player.sendMessage("§c[RelicWars] 어둠매듭 은신이 종료되어 위치가 노출되었습니다!");
             }
         }, 200L); // 10초
+        return true;
     }
 
 
 
     // #025 최후의 봉합
-    private void execute025(Player player) {
+    private boolean execute025(Player player) {
         player.sendMessage("§5[RelicWars] 30초간 구조 시간이 2초로 대폭 단축됩니다!");
         
         UUID id = player.getUniqueId();
@@ -343,12 +360,13 @@ public class RelicAbilityHandler implements Listener {
             active025FastRevive.remove(id);
             if (player.isOnline()) player.sendMessage("§c[RelicWars] 구조 단축 효과가 종료되었습니다.");
         }, 600L); // 30초
+        return true;
     }
 
     // ======================== Batch 2: #024 ~ #020 ========================
 
     // #024 붉은 봉합 — 30블록 밖 다운 팀원을 자기 위치로 텔레포트
-    private void execute024(Player player) {
+    private boolean execute024(Player player) {
         // 30블록 이내 다운된 팀원 탐색
         Player target = null;
         for (Player p : player.getWorld().getPlayers()) {
@@ -363,7 +381,7 @@ public class RelicAbilityHandler implements Listener {
 
         if (target == null) {
             player.sendMessage("§c[RelicWars] 30블록 이내에 다운된 팀원이 없습니다!");
-            return;
+            return false;
         }
 
         Location startLoc = target.getLocation().clone();
@@ -382,10 +400,11 @@ public class RelicAbilityHandler implements Listener {
 
         player.sendMessage("§d[붉은 봉합] " + target.getName() + "님을 내 위치로 소환했습니다! 구조를 시작하세요!");
         target.sendMessage("§d[붉은 봉합] 팀원에 의해 안전 지대로 이동되었습니다!");
+        return true;
     }
 
     // #023 사냥꾼의 표식 — 60초간 바라보는 적에게 발광 + 강탈 시간 단축
-    private void execute023(Player player) {
+    private boolean execute023(Player player) {
         // 바라보고 있는 적 탐색 (50블록 이내)
         Player target = null;
         for (Entity e : player.getNearbyEntities(50, 50, 50)) {
@@ -403,7 +422,7 @@ public class RelicAbilityHandler implements Listener {
 
         if (target == null) {
             player.sendMessage("§c[RelicWars] 바라보는 방향에 적 플레이어가 없습니다!");
-            return;
+            return false;
         }
 
         Player marked = target;
@@ -416,10 +435,11 @@ public class RelicAbilityHandler implements Listener {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             active023Marked.remove(marked.getUniqueId());
         }, 1200L);
+        return true;
     }
 
     // #022 탐욕의 동전 — 가짜 봉인 유물 트랩 설치
-    private void execute022(Player player) {
+    private boolean execute022(Player player) {
         Location trapLoc = player.getLocation().clone();
         player.sendMessage("§e[탐욕의 동전] 가짜 봉인 유물 트랩을 설치했습니다!");
 
@@ -469,10 +489,11 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }.runTaskTimer(plugin, 20L, 5L);
+        return true;
     }
 
     // #021 결투자의 파편 — 15x15 결투장 20초간 강제 1대1
-    private void execute021(Player player) {
+    private boolean execute021(Player player) {
         // 15블록 이내 바라보는 적 탐색
         Player target = null;
         for (Entity e : player.getNearbyEntities(15, 15, 15)) {
@@ -489,7 +510,7 @@ public class RelicAbilityHandler implements Listener {
 
         if (target == null) {
             player.sendMessage("§c[RelicWars] 15블록 이내에 적 플레이어가 없습니다!");
-            return;
+            return false;
         }
 
         Player enemy = target;
@@ -559,10 +580,11 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }.runTaskTimer(plugin, 0L, 10L);
+        return true;
     }
 
     // #020 소문의 등불 — 4가지 옵션 중 하나를 선택하는 GUI 오픈
-    private void execute020(Player player) {
+    private boolean execute020(Player player) {
         Inventory inv = Bukkit.createInventory(null, 9, Component.text("§5소문의 등불"));
 
         inv.setItem(3, createGuiItem(Material.ENDER_EYE, "§5[봉인 유물 스캔]", "§7현재 바닥에 봉인된", "§7유물들의 위치를 파악합니다."));
@@ -570,6 +592,7 @@ public class RelicAbilityHandler implements Listener {
 
         player.openInventory(inv);
         com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 누군가 소문의 등불을 켰습니다.");
+        return true;
     }
 
     private ItemStack createGuiItem(Material material, String name, String... lore) {
@@ -645,11 +668,11 @@ public class RelicAbilityHandler implements Listener {
     private final java.util.Map<java.util.UUID, org.bukkit.entity.Item> pending019Relic = new java.util.HashMap<>();
 
     // #019 봉인의 바늘 — 봉인 유물의 봉인 시간을 절반으로 단축
-    private void execute019(Player player) {
+    private boolean execute019(Player player) {
         org.bukkit.entity.Item nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 50);
         if (nearest == null) {
             player.sendMessage("§c[RelicWars] 50블록 이내에 봉인된 유물이 없습니다!");
-            return;
+            return false;
         }
         
         pending019Relic.put(player.getUniqueId(), nearest);
@@ -659,6 +682,7 @@ public class RelicAbilityHandler implements Listener {
         
         player.openInventory(inv);
         com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] %s쪽에서 시간의 흐름이 비틀리는 듯한 파동이 발생했습니다.");
+        return true;
     }
 
     public void execute019Option1(Player player) {
@@ -687,7 +711,7 @@ public class RelicAbilityHandler implements Listener {
     }
 
     // #018 흔적 렌즈 — 200블록 내 유물 보유자의 발자국 파티클
-    private void execute018(Player player) {
+    private boolean execute018(Player player) {
         player.sendMessage("§e[흔적 렌즈] 반경 200블록 내 최근 3분간의 유물 보유자 흔적을 추적합니다!");
         com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 누군가 흔적을 읽기 시작했습니다.");
 
@@ -723,10 +747,11 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }
+        return true;
     }
 
     // #017 왜곡의 닻 — 다운 시 닻 위치로 텔레포트 세이브
-    private void execute017(Player player) {
+    private boolean execute017(Player player) {
         Location anchorLoc = player.getLocation().clone();
         player.sendMessage("§5[왜곡의 닻] 현재 위치에 공간 왜곡장을 설치했습니다! (60초간 활성)");
         player.sendMessage("§7  이 범위(50블록) 안에서 다운되면 이 위치로 순간이동합니다.");
@@ -751,10 +776,11 @@ public class RelicAbilityHandler implements Listener {
                 if (player.isOnline()) player.sendMessage("§c[왜곡의 닻] 왜곡장이 소멸되었습니다.");
             }
         }, 1200L); // 60초
+        return true;
     }
 
     // #016 감시의 방패 — 5분간 80블록 레이더
-    private void execute016(Player player) {
+    private boolean execute016(Player player) {
         player.sendMessage("§b[감시의 방패] 반경 80블록 감시 구역을 5분간 전개합니다!");
         Location center = player.getLocation().clone();
         
@@ -811,14 +837,15 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }.runTaskTimer(plugin, 0L, 40L); // 2초마다 스캔
+        return true;
     }
 
     // #015 회수자의 갈고리 — 20블록 밖 봉인 유물을 끌어오기
-    private void execute015(Player player) {
+    private boolean execute015(Player player) {
         org.bukkit.entity.Item nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 20);
         if (nearest == null) {
             player.sendMessage("§c[RelicWars] 20블록 이내에 봉인된 유물이 없습니다!");
-            return;
+            return false;
         }
 
         player.sendMessage("§6[회수자의 갈고리] 3초간 정신을 집중하여 유물을 끌어옵니다! (이동/피격 시 취소)");
@@ -861,6 +888,7 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }.runTaskTimer(plugin, 0L, 5L);
+        return true;
     }
     
     private void startPullingRelic(Player player, org.bukkit.entity.Item target) {
@@ -891,7 +919,7 @@ public class RelicAbilityHandler implements Listener {
     // ======================== Batch 4: #014 ~ #010 ========================
 
     // #014 전장의 뿔 — 60초간 팀 시야 공유 + 이속 버프
-    private void execute014(Player player) {
+    private boolean execute014(Player player) {
         player.sendMessage("§6[전장의 뿔] 뿔피리가 울려 퍼집니다! 60초간 팀 시야 공유 + 이속 증가!");
         String teamId = plugin.getTeamManager().getTeamId(player);
 
@@ -920,10 +948,11 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }
+        return true;
     }
 
     // #013 탐욕의 뼈 — 보스를 적진에 배달
-    private void execute013(Player player) {
+    private boolean execute013(Player player) {
         player.sendMessage("§4[탐욕의 뼈] 피의 마커를 설치했습니다! 탐욕의 추적자가 이 위치로 질주합니다!");
         // MVP: 마커 반경 30블록의 적 위치 10초간 노출
         Location marker = player.getLocation().clone();
@@ -944,10 +973,11 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }.runTaskTimer(plugin, 0L, 20L);
+        return true;
     }
 
     // #012 약탈자의 장갑 — 적 정신력 30 강탈 (MVP: 디버프 부여)
-    private void execute012(Player player) {
+    private boolean execute012(Player player) {
         Player target = null;
         for (Entity e : player.getNearbyEntities(10, 10, 10)) {
             if (!(e instanceof Player p)) continue;
@@ -958,7 +988,7 @@ public class RelicAbilityHandler implements Listener {
 
         if (target == null) {
             player.sendMessage("§c[RelicWars] 10블록 이내에 적 플레이어가 없습니다!");
-            return;
+            return false;
         }
 
         Player victim = target;
@@ -971,10 +1001,11 @@ public class RelicAbilityHandler implements Listener {
 
         victim.sendMessage("§4[약탈자의 장갑] 누군가 당신의 정신력을 " + stolenSanity + " 강탈했습니다!");
         player.sendMessage("§a[약탈자의 장갑] " + victim.getName() + "의 정신력을 " + stolenSanity + " 강탈했습니다!");
+        return true;
     }
 
     // #011 공명의 종 — 300블록 내 유물 보유자 전원 위치 적발
-    private void execute011(Player player) {
+    private boolean execute011(Player player) {
         player.sendMessage("§a[공명의 종] 반경 300블록 내의 모든 유물 소유자를 탐지합니다!");
         com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 어디선가 맑은 종소리가 울려퍼집니다.");
 
@@ -1011,10 +1042,11 @@ public class RelicAbilityHandler implements Listener {
                 p.sendMessage("§c[경고] 공명의 종에 의해 당신의 위치가 노출되었습니다!");
             }
         }
+        return true;
     }
 
     // #010 충격 코어 — 광역 넉백 + 5초 EMP (상호작용 차단)
-    private void execute010(Player player) {
+    private boolean execute010(Player player) {
         player.sendMessage("§4[충격 코어] 반경 15블록 넉백 및 20블록 EMP 발동!");
         Bukkit.broadcast(Component.text("§4[EMP] 거대한 폭발음과 함께 주변의 기운이 증발합니다!"));
         
@@ -1046,25 +1078,27 @@ public class RelicAbilityHandler implements Listener {
                 if (p.isOnline()) p.sendMessage("§a[EMP] 시스템 복구 완료. 유물 사용이 가능합니다.");
             }, 100L); // 5초
         }
+        return true;
     }
 
     // ======================== Batch 5: #009 ~ #005 ========================
 
     // #009 파괴자의 서 — 봉인 즉시 파괴
-    private void execute009(Player player) {
+    private boolean execute009(Player player) {
         org.bukkit.entity.Item nearest = plugin.getSealedRelicManager().getNearestSealed(player.getLocation(), 50);
         if (nearest == null) {
             player.sendMessage("§c[RelicWars] 50블록 이내에 봉인된 유물이 없습니다!");
-            return;
+            return false;
         }
 
         plugin.getSealedRelicManager().forceUnseal(nearest);
         player.sendMessage("§5[파괴자의 서] 봉인을 즉시 파괴했습니다! 유물이 획득 가능합니다!");
         Bukkit.broadcast(Component.text("§5[파괴] 누군가 봉인 유물의 봉인을 강제로 파괴했습니다!"));
+        return true;
     }
 
     // #006 차원 도약석 — 30블록 순간이동 + 5초 내 복귀
-    private void execute006(Player player) {
+    private boolean execute006(Player player) {
         Location origin = player.getLocation().clone();
         
         // 30블록 앞 좌표 계산 (벽 통과 방지)
@@ -1112,6 +1146,7 @@ public class RelicAbilityHandler implements Listener {
                 if (player.isOnline()) player.sendMessage("§c[차원 도약석] 복귀 시간이 초과되었습니다.");
             }
         }, 100L); // 5초
+        return true;
     }
     
     private void execute006Return(Player player) {
@@ -1187,7 +1222,7 @@ public class RelicAbilityHandler implements Listener {
 
 
     // #008 그림자 막 — 3분간 모든 탐지 무효화 + 가짜 신호
-    private void execute008(Player player) {
+    private boolean execute008(Player player) {
         player.sendMessage("§8[그림자 막] 3분간 팀 전체가 모든 탐지에서 사라집니다!");
         com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 주변에 짙은 그림자가 드리우며 기운이 사라집니다.");
 
@@ -1224,10 +1259,11 @@ public class RelicAbilityHandler implements Listener {
             });
             Bukkit.getScheduler().runTaskLater(plugin, () -> { if (!decoy.isDead()) decoy.remove(); }, 3600L);
         }
+        return true;
     }
 
     // #007 파수꾼의 돔 — 15초 절대 방어막 (역장)
-    private void execute007(Player player) {
+    private boolean execute007(Player player) {
         player.sendMessage("§b[파수꾼의 돔] 반경 8블록 절대 방어막(역장)을 15초간 전개합니다!");
         com.wolfool.relicwars.util.RumorUtil.broadcastRumor(player.getLocation(), "§b[소문] 거대한 방벽이 세워지는 진동이 느껴집니다.");
 
@@ -1286,11 +1322,12 @@ public class RelicAbilityHandler implements Listener {
             forcefieldTask.cancel();
             if (player.isOnline()) player.sendMessage("§c[파수꾼의 돔] 방어막이 해제되었습니다.");
         }, 300L); // 15초
+        return true;
     }
 
 
     // #005 불멸의 심장 — 패시브: 다운 무시 1회 (MVP: 액티브로 대체)
-    private void execute005(Player player) {
+    private boolean execute005(Player player) {
         player.sendMessage("§6[불멸의 심장] 다음 치명상을 1회 무시합니다! (90분 쿨타임)");
         player.sendMessage("§7  체력이 0이 되어야 할 순간 체력 100%로 부활하며 주변 적을 밀쳐냅니다.");
 
@@ -1310,12 +1347,13 @@ public class RelicAbilityHandler implements Listener {
 
         // 황금 충격파 효과
         player.getWorld().strikeLightningEffect(player.getLocation());
+        return true;
     }
 
     // ======================== Batch 6: #004 ~ #001 ========================
 
     // #004 폭풍의 왕관 — 반경 30블록 광역 뇌우 15초
-    private void execute004(Player player) {
+    private boolean execute004(Player player) {
         Block targetBlock = player.getTargetBlockExact(100);
         Location stormCenter;
         if (targetBlock != null) {
@@ -1356,10 +1394,11 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }.runTaskTimer(plugin, 0L, 20L); // 1초마다
+        return true;
     }
 
     // #003 절대 좌표 나침반 — 특정 유물의 실시간 좌표 3분간 표시
-    private void execute003(Player player) {
+    private boolean execute003(Player player) {
         player.sendMessage("§5[절대 좌표 나침반] 추적할 유물 번호(숫자)를 채팅에 입력하세요! (1~30)");
         player.sendMessage("§7  (입력 대기 시간: 1분)");
         
@@ -1372,6 +1411,7 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }, 1200L); // 1분
+        return true;
     }
 
     public void start003Tracker(Player player, int targetNum) {
@@ -1424,14 +1464,15 @@ public class RelicAbilityHandler implements Listener {
     }
 
     // #002 탐욕의 적출자 — 다운된 적에게서 0.5초 즉시 강탈 (CombatListener에서 처리됨)
-    private void execute002(Player player) {
+    private boolean execute002(Player player) {
         player.sendMessage("§c[탐욕의 적출자] 이 유물은 허공에 사용하는 것이 아닙니다. 다운된 적을 우클릭하여 발동하세요.");
+        return true;
     }
 
 
 
     // #001 태초의 별: 심판의 별 (60초간 비행, 무제한 벼락 포격, 좌표 실시간 중계)
-    private void execute001(Player player) {
+    private boolean execute001(Player player) {
         // 인벤토리에서 유물 삭제 (1회용이므로 삭제)
         org.bukkit.inventory.ItemStack handItem = player.getInventory().getItemInMainHand();
         if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(handItem) && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(handItem) == 1) {
@@ -1496,6 +1537,7 @@ public class RelicAbilityHandler implements Listener {
                 }
             }
         }.runTaskTimer(plugin, 40L, 40L); // 2초마다 실행
+        return true;
     }
 
 
