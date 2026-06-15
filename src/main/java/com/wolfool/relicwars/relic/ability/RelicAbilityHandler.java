@@ -1557,7 +1557,13 @@ public class RelicAbilityHandler implements Listener {
         
         active001Omega.remove(id);
         active005DamageReduction.remove(id);
-        active029FallImmunity.remove(id);
+        if (active029FallImmunity.remove(id)) {
+            Player p = Bukkit.getPlayer(id);
+            if (p != null && p.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+                p.setAllowFlight(false);
+                p.setFlying(false);
+            }
+        }
         active027FireImmunity.remove(id);
         active025FastRevive.remove(id);
         active023Marked.remove(id);
@@ -1567,8 +1573,12 @@ public class RelicAbilityHandler implements Listener {
         active015Casting.remove(id);
         active010EMP.remove(id);
         active008Shadow.remove(id);
-        active006Leap.remove(id);
+        LeapData data006 = active006Leap.remove(id);
+        if (data006 != null && data006.hologram != null && !data006.hologram.isDead()) {
+            data006.hologram.remove();
+        }
         active003TrackerWait.remove(id);
+        pending019Relic.remove(id);
         cooldown005.remove(id);
         
         // 결투 대상에서도 제거

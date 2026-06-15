@@ -290,7 +290,7 @@ public class CombatListener implements Listener {
                     }
                     
                     stealer.sendMessage("§4[탐욕의 적출자] 적출 성공! 대상의 모든 유물이 바닥에 떨어졌습니다.");
-                    target.setHealth(0.0); // 즉사
+                    combatManager.executePlayer(target, stealer); // 다운 해제 후 사망 처리
                     
                     stealer.getWorld().spawnParticle(org.bukkit.Particle.ENCHANTED_HIT, target.getLocation().add(0, 1, 0), 50, 0.5, 0.5, 0.5, 0.1);
                     stealer.getWorld().playSound(target.getLocation(), org.bukkit.Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 1.0f, 0.5f);

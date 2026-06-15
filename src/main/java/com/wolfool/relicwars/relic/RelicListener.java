@@ -99,6 +99,9 @@ public class RelicListener implements Listener {
             return;
         }
 
+        // 메인핸드 이벤트만 처리 (OFF_HAND 이벤트에 의한 이중 발동 방지)
+        if (event.getHand() != EquipmentSlot.HAND) return;
+
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
 
@@ -177,18 +180,12 @@ public class RelicListener implements Listener {
             event.setCancelled(true);
             if (event.getClickedInventory() == topInventory) {
                 int slot = event.getSlot();
-                if (slot == 1) {
+                if (slot == 3) {
                     player.closeInventory();
-                    plugin.getRelicAbilityHandler().execute020Option2(player); // 기존 Option2 (스캔)
-                } else if (slot == 3) {
-                    player.closeInventory();
-                    plugin.getRelicAbilityHandler().execute020Option3(player); // 기존 Option3 (검색)
+                    plugin.getRelicAbilityHandler().execute020Option2(player); // 봉인 유물 스캔
                 } else if (slot == 5) {
                     player.closeInventory();
-                    plugin.getRelicAbilityHandler().execute020OptionRandom(player); // 무작위 소문
-                } else if (slot == 7) {
-                    player.closeInventory();
-                    plugin.getRelicAbilityHandler().execute020OptionPing(player); // 기만 전술
+                    plugin.getRelicAbilityHandler().execute020Option3(player); // 소유자 검색
                 }
             }
             return;

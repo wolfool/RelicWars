@@ -14,6 +14,8 @@ import com.wolfool.relicwars.sanity.SanityManager;
 import com.wolfool.relicwars.command.RelicCommand;
 import com.wolfool.relicwars.command.TeamCommand;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.util.logging.Level;
 
@@ -118,6 +120,13 @@ public final class RelicWars extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // 능력 상태 정리 (배리어, 홀로그램, 비행 등)
+        if (relicAbilityHandler != null) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                relicAbilityHandler.cleanupPlayer(p);
+            }
+        }
+
         // --- 매니저 종료 ---
         if (sanityManager != null) sanityManager.shutdown();
         if (footprintTracker != null) footprintTracker.shutdown();
