@@ -85,7 +85,7 @@ public class BloodMoonTask extends BukkitRunnable {
         }
 
         if (target != null && maxRelics > 0) {
-            int blur = plugin.getConfigManager().getBloodMoonCoordinateBlur();
+            int blur = Math.max(1, plugin.getConfigManager().getBloodMoonCoordinateBlur());
             int blurredX = (int) (Math.round(target.getLocation().getX() / blur) * blur);
             int blurredZ = (int) (Math.round(target.getLocation().getZ() / blur) * blur);
             

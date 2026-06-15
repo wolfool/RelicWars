@@ -78,12 +78,7 @@ public class CombatManager implements Manager {
      * 체력이 0이 되는 순간 호출되어야 합니다.
      */
     public void setDowned(Player player) {
-        // #005 불멸의 심장 소지 여부 감지 및 발동
-        if (plugin.getRelicManager().hasRelic(player, 5)) {
-            if (plugin.getRelicAbilityHandler().trigger005ImmortalHeart(player)) {
-                return; // 발동 성공 시 다운을 무시하고 빠져나감!
-            }
-        }
+        // #005 불멸의 심장은 CombatListener.onPlayerDamage에서 이미 처리됨
 
         downedPlayers.put(player.getUniqueId(), System.currentTimeMillis());
         executeHits.put(player.getUniqueId(), 0);
@@ -93,7 +88,9 @@ public class CombatManager implements Manager {
         String teamId = plugin.getTeamManager().getTeamId(player);
         String key = teamId != null ? teamId : player.getUniqueId().toString();
         Location anchorLoc = plugin.getRelicAbilityHandler().active017Anchor.get(key);
-        if (anchorLoc != null && player.getLocation().distanceSquared(anchorLoc) <= 2500) { // 반경 50블록
+        if (anchorLoc != null && anchorLoc.getWorld() != null
+                && anchorLoc.getWorld().equals(player.getWorld())
+                && player.getLocation().distanceSquared(anchorLoc) <= 2500) { // 반경 50블록
             player.teleport(anchorLoc);
             player.sendMessage("§d[왜곡의 닻] 공간 왜곡장에 의해 안전한 위치로 대피했습니다!");
             plugin.getRelicAbilityHandler().active017Anchor.remove(key); // 1회용 소모

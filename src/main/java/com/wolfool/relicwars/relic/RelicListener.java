@@ -233,6 +233,8 @@ public class RelicListener implements Listener {
                     player.sendMessage("§c[RelicWars] 유물은 자신의 인벤토리에만 보관할 수 있습니다!");
                     return;
                 }
+            }
+
             // 핫바 스왑(숫자키) 방지
             if (event.getAction() == InventoryAction.HOTBAR_SWAP || event.getAction() == InventoryAction.HOTBAR_MOVE_AND_READD) {
                 if (event.getClickedInventory() != null && event.getClickedInventory().equals(topInventory)) {
@@ -259,7 +261,6 @@ public class RelicListener implements Listener {
             player.sendMessage("§c[RelicWars] 유물을 꾸러미에 넣을 수 없습니다!");
             return;
         }
-    }
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -381,33 +382,41 @@ public class RelicListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-            java.util.List<ItemStack> toRemove = new java.util.ArrayList<>();
-            
-            for (ItemStack item : player.getInventory().getContents()) {
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            // 메인 스레드에서 인벤토리 스냅샷 수집
+            java.util.Map<Integer, Integer> relicSnapshot = new java.util.HashMap<>(); // slot -> relicNum
+            ItemStack[] contents = player.getInventory().getContents();
+            for (int i = 0; i < contents.length; i++) {
+                ItemStack item = contents[i];
                 if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(item)) {
-                    int relicNum = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(item);
-                    String dbOwner = plugin.getDatabaseManager().getRelicOwner(relicNum);
-                    
-                    // DB 소유자가 자신이 아니거나 (또는 null이거나) 하면 복사된 가짜 유물이므로 삭제!
-                    if (dbOwner == null || !dbOwner.equals(player.getUniqueId().toString())) {
-                        toRemove.add(item);
-                        plugin.getLogger().warning("[보안] " + player.getName() + "의 인벤토리에서 복사된/비정상 유물 #" + relicNum + " 이 적발되어 회수 조치됨.");
-                    }
+                    relicSnapshot.put(i, com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(item));
                 }
             }
-            
-            if (!toRemove.isEmpty()) {
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    if (player.isOnline()) {
-                        for (ItemStack fake : toRemove) {
-                            player.getInventory().remove(fake);
-                        }
-                        player.sendMessage("§c[RelicWars] 인벤토리에서 비정상적인 유물(복사본)이 감지되어 시스템에 의해 회수되었습니다.");
+            if (relicSnapshot.isEmpty()) return;
+
+            // DB 조회는 async에서
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+                java.util.List<Integer> fakeSlots = new java.util.ArrayList<>();
+                for (java.util.Map.Entry<Integer, Integer> entry : relicSnapshot.entrySet()) {
+                    String dbOwner = plugin.getDatabaseManager().getRelicOwner(entry.getValue());
+                    if (dbOwner == null || !dbOwner.equals(player.getUniqueId().toString())) {
+                        fakeSlots.add(entry.getKey());
+                        plugin.getLogger().warning("[보안] " + player.getName() + "의 인벤토리에서 복사된/비정상 유물 #" + entry.getValue() + " 이 적발되어 회수 조치됨.");
                     }
-                });
-            }
-        }, 20L); // 접속 1초 후 비동기 검사
+                }
+                if (!fakeSlots.isEmpty()) {
+                    // 삭제는 메인 스레드에서
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        if (player.isOnline()) {
+                            for (int slot : fakeSlots) {
+                                player.getInventory().setItem(slot, null);
+                            }
+                            player.sendMessage("§c[RelicWars] 인벤토리에서 비정상적인 유물(복사본)이 감지되어 시스템에 의해 회수되었습니다.");
+                        }
+                    });
+                }
+            });
+        }, 20L); // 접속 1초 후 검사
     }
 
     // ======================== 채팅 가로채기 (#020 소문의 등불) ========================

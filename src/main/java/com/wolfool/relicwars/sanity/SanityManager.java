@@ -148,41 +148,45 @@ public class SanityManager implements Manager {
     // ======================== DB 연동 ========================
 
     private void loadAllFromDB() {
-        Connection conn = plugin.getDatabaseManager().getConnection();
-        if (conn == null) return;
-        try {
-            try (PreparedStatement pstmt = conn.prepareStatement("SELECT uuid, sanity FROM players WHERE sanity IS NOT NULL");
-                 ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    UUID uuid = UUID.fromString(rs.getString("uuid"));
-                    int sanity = rs.getInt("sanity");
-                    sanityMap.put(uuid, sanity);
+        synchronized (plugin.getDatabaseManager()) {
+            Connection conn = plugin.getDatabaseManager().getConnection();
+            if (conn == null) return;
+            try {
+                try (PreparedStatement pstmt = conn.prepareStatement("SELECT uuid, sanity FROM players WHERE sanity IS NOT NULL");
+                     ResultSet rs = pstmt.executeQuery()) {
+                    while (rs.next()) {
+                        UUID uuid = UUID.fromString(rs.getString("uuid"));
+                        int sanity = rs.getInt("sanity");
+                        sanityMap.put(uuid, sanity);
+                    }
                 }
+            } catch (SQLException e) {
+                plugin.getLogger().warning("정신력 데이터 로드 실패: " + e.getMessage());
             }
-        } catch (SQLException e) {
-            plugin.getLogger().warning("정신력 데이터 로드 실패: " + e.getMessage());
         }
     }
 
     private void saveAllToDB() {
-        Connection conn = plugin.getDatabaseManager().getConnection();
-        if (conn == null) return;
-        
-        for (Map.Entry<UUID, Integer> entry : sanityMap.entrySet()) {
-            try {
-                String query = """
-                    INSERT INTO players (uuid, name, sanity) VALUES (?, ?, ?)
-                    ON CONFLICT(uuid) DO UPDATE SET sanity = excluded.sanity
-                """;
-                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                    pstmt.setString(1, entry.getKey().toString());
-                    Player p = Bukkit.getPlayer(entry.getKey());
-                    pstmt.setString(2, p != null ? p.getName() : "unknown");
-                    pstmt.setInt(3, entry.getValue());
-                    pstmt.executeUpdate();
+        synchronized (plugin.getDatabaseManager()) {
+            Connection conn = plugin.getDatabaseManager().getConnection();
+            if (conn == null) return;
+            
+            for (Map.Entry<UUID, Integer> entry : sanityMap.entrySet()) {
+                try {
+                    String query = """
+                        INSERT INTO players (uuid, name, sanity) VALUES (?, ?, ?)
+                        ON CONFLICT(uuid) DO UPDATE SET sanity = excluded.sanity
+                    """;
+                    try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                        pstmt.setString(1, entry.getKey().toString());
+                        Player p = Bukkit.getPlayer(entry.getKey());
+                        pstmt.setString(2, p != null ? p.getName() : "unknown");
+                        pstmt.setInt(3, entry.getValue());
+                        pstmt.executeUpdate();
+                    }
+                } catch (SQLException e) {
+                    plugin.getLogger().warning("정신력 저장 실패: " + e.getMessage());
                 }
-            } catch (SQLException e) {
-                plugin.getLogger().warning("정신력 저장 실패: " + e.getMessage());
             }
         }
     }
@@ -197,21 +201,23 @@ public class SanityManager implements Manager {
         sanityMap.remove(p.getUniqueId());
         
         org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            Connection conn = plugin.getDatabaseManager().getConnection();
-            if (conn == null) return;
-            try {
-                String query = """
-                    INSERT INTO players (uuid, name, sanity) VALUES (?, ?, ?)
-                    ON CONFLICT(uuid) DO UPDATE SET sanity = excluded.sanity
-                """;
-                try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                    pstmt.setString(1, p.getUniqueId().toString());
-                    pstmt.setString(2, p.getName());
-                    pstmt.setInt(3, sanity);
-                    pstmt.executeUpdate();
+            synchronized (plugin.getDatabaseManager()) {
+                Connection conn = plugin.getDatabaseManager().getConnection();
+                if (conn == null) return;
+                try {
+                    String query = """
+                        INSERT INTO players (uuid, name, sanity) VALUES (?, ?, ?)
+                        ON CONFLICT(uuid) DO UPDATE SET sanity = excluded.sanity
+                    """;
+                    try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                        pstmt.setString(1, p.getUniqueId().toString());
+                        pstmt.setString(2, p.getName());
+                        pstmt.setInt(3, sanity);
+                        pstmt.executeUpdate();
+                    }
+                } catch (SQLException e) {
+                    plugin.getLogger().warning("정신력 저장 실패: " + e.getMessage());
                 }
-            } catch (SQLException e) {
-                plugin.getLogger().warning("정신력 저장 실패: " + e.getMessage());
             }
         });
     }
