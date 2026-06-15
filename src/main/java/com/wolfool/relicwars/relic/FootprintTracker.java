@@ -12,6 +12,7 @@ import java.util.*;
 public class FootprintTracker {
 
     private final RelicWars plugin;
+    private org.bukkit.scheduler.BukkitTask trackerTask;
     // 플레이어 UUID -> 시간순 발자국 큐
     private final Map<UUID, Queue<FootprintData>> footprints = new HashMap<>();
 
@@ -21,13 +22,13 @@ public class FootprintTracker {
 
     public void initialize() {
         // 3초(60틱)마다 모든 온라인 플레이어의 유물 소지 여부 검사 후 위치 기록
-        new BukkitRunnable() {
+        trackerTask = new BukkitRunnable() {
             @Override
             public void run() {
                 long now = System.currentTimeMillis();
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     // #008 그림자 막 상태라면 발자국 기록 생략
-                    if (plugin.getRelicAbilityHandler().active008Shadow.contains(p.getUniqueId())) continue;
+                    if (plugin.getRelicAbilityHandler().isShadowActive(p.getUniqueId())) continue;
 
                     int relicCount = plugin.getRelicManager().countPlayerRelics(p);
                     if (relicCount > 0) {
@@ -56,11 +57,14 @@ public class FootprintTracker {
                         queue.poll();
                     }
                 }
+                // 빈 큐 제거 (메모리 누수 방지)
+                footprints.entrySet().removeIf(e -> e.getValue().isEmpty());
             }
         }.runTaskTimer(plugin, 0L, 60L); // 3초마다
     }
 
     public void shutdown() {
+        if (trackerTask != null && !trackerTask.isCancelled()) trackerTask.cancel();
         footprints.clear();
     }
 

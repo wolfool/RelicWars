@@ -45,6 +45,10 @@ public class TeamManager implements Manager {
     @Override
     public void shutdown() {
         if (expireTask != null) expireTask.cancel();
+        // 대기 중인 초대 태스크 일괄 취소
+        inviteTasks.values().forEach(BukkitTask::cancel);
+        inviteTasks.clear();
+        pendingInvites.clear();
         plugin.getLogger().info("§a[RelicWars] TeamManager 종료.");
     }
 
@@ -111,7 +115,9 @@ public class TeamManager implements Manager {
                     if (rs.next()) count = rs.getInt(1);
                 }
             }
-        } catch (SQLException ignored) {}
+        } catch (SQLException e) {
+            plugin.getLogger().warning("[RelicWars] 팀 유물 수 조회 실패: " + e.getMessage());
+        }
         return count;
     }
 

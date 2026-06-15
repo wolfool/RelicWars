@@ -101,6 +101,8 @@ public class ForgottenRelicTask extends BukkitRunnable {
                 break;
         }
 
-        Bukkit.broadcast(Component.text(message));
+        // async 태스크이므로 메인 스레드에서 broadcast 실행
+        final String msg = message;
+        Bukkit.getScheduler().runTask(plugin, () -> Bukkit.broadcast(Component.text(msg)));
     }
 }

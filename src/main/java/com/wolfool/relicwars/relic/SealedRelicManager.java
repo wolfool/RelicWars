@@ -160,6 +160,7 @@ public class SealedRelicManager implements Manager, Listener {
      */
     public void spawnSealedRelic(Location location, ItemStack relic, int sealSeconds) {
         if (relic == null || !RelicItemUtil.isRelic(relic)) return;
+        if (location.getWorld() == null) return; // null world 안전 체크
 
         // 실제 드랍 아이템(Item) 엔티티를 소환하여 중력(물리) 적용
         org.bukkit.entity.Item itemEntity = location.getWorld().dropItem(location, relic);
@@ -308,14 +309,14 @@ public class SealedRelicManager implements Manager, Listener {
             @Override
             public void run() {
                 if (!player.isOnline() || !targetItem.isValid() || plugin.getCombatManager().isDowned(player)) {
-                    pickupTasks.remove(player.getUniqueId()).cancel();
+                    BukkitTask t = pickupTasks.remove(player.getUniqueId()); if (t != null) t.cancel();
                     player.sendActionBar(Component.text("§c유물 줍기 취소됨"));
                     return;
                 }
 
                 // 이동 체크 (너무 멀어지면 취소)
-                if (player.getLocation().distanceSquared(startLoc) > 2.0 || player.getLocation().distanceSquared(targetItem.getLocation()) > 16.0) {
-                    pickupTasks.remove(player.getUniqueId()).cancel();
+                if (!player.getLocation().getWorld().equals(startLoc.getWorld()) || player.getLocation().distanceSquared(startLoc) > 2.0 || player.getLocation().distanceSquared(targetItem.getLocation()) > 16.0) {
+                    BukkitTask t = pickupTasks.remove(player.getUniqueId()); if (t != null) t.cancel();
                     player.sendActionBar(Component.text("§c유물 줍기 취소됨 (너무 많이 움직였습니다)"));
                     return;
                 }
@@ -323,7 +324,7 @@ public class SealedRelicManager implements Manager, Listener {
                 // 시선 유지 체크
                 org.bukkit.entity.Entity targetEnt = player.getTargetEntity(5);
                 if (targetEnt == null || !targetEnt.equals(finalInteraction)) {
-                    pickupTasks.remove(player.getUniqueId()).cancel();
+                    BukkitTask t = pickupTasks.remove(player.getUniqueId()); if (t != null) t.cancel();
                     player.sendActionBar(Component.text("§c유물 줍기 취소됨 (시선을 뗐습니다)"));
                     return;
                 }
@@ -343,7 +344,7 @@ public class SealedRelicManager implements Manager, Listener {
                 InteractionEffects.playPickupTickEffect(player, targetItem.getLocation(), (float) ticks / requiredTicks);
 
                 if (ticks >= requiredTicks) {
-                    pickupTasks.remove(player.getUniqueId()).cancel();
+                    BukkitTask t = pickupTasks.remove(player.getUniqueId()); if (t != null) t.cancel();
 
                     // 줍기 성공!
                     ItemStack pickedUpRelic = targetItem.getItemStack();
@@ -361,7 +362,8 @@ public class SealedRelicManager implements Manager, Listener {
                         }
                     }
 
-                    player.getInventory().addItem(pickedUpRelic);
+                    java.util.Map<Integer, ItemStack> overflow = player.getInventory().addItem(pickedUpRelic);
+                    overflow.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
                     RelicDefinition def = RelicDefinition.getByNumber(relicNum);
                     if (def != null) {
                         player.sendMessage("§a[RelicWars] " + def.getDisplayName() + " §a유물을 획득했습니다!");
