@@ -61,6 +61,10 @@ public class ConfigManager {
     private int endingRequiredTeamRelics;
     private int altarDefenseMinutes;
 
+    // --- 추가 캐시된 값 ---
+    private int maxRelicStealsPerDowned;
+    private int maxRelicsPerTeam;
+
     public ConfigManager(RelicWars plugin) {
         this.plugin = plugin;
     }
@@ -134,13 +138,17 @@ public class ConfigManager {
         bloodMoonBroadcastDimension = config.getBoolean("event.blood-moon.broadcast-dimension", true);
         bloodMoonCoordinateBlur = config.getInt("event.blood-moon.coordinate-blur", 100);
         forgottenRelicsEnabled = config.getBoolean("event.forgotten-relics.enabled", true);
-        disableEndCities = config.getBoolean("events.disable-end-cities", true);
-        disableElytra = config.getBoolean("events.disable-elytra", true);
+        disableEndCities = config.getBoolean("event.disable-end-cities", true);
+        disableElytra = config.getBoolean("event.disable-elytra", true);
 
         // --- 엔딩 ---
         endingRequiredAllSpawned = config.getBoolean("ending.required-all-spawned", true);
         endingRequiredTeamRelics = config.getInt("ending.required-team-relics-to-summon", 10);
         altarDefenseMinutes = config.getInt("ending.altar-defense-minutes", 30);
+
+        // --- 추가 캐시 ---
+        maxRelicStealsPerDowned = config.getInt("combat.max-relic-steals", 3);
+        maxRelicsPerTeam = config.getInt("team.max-relics", 3);
     }
 
     // ===================== Getters =====================
@@ -205,6 +213,6 @@ public class ConfigManager {
     public boolean isEndingRequiredAllSpawned() { return endingRequiredAllSpawned; }
     public int getEndingRequiredTeamRelics() { return endingRequiredTeamRelics; }
     public int getAltarDefenseMinutes() { return altarDefenseMinutes; }
-    public int getMaxRelicStealsPerDowned() { return plugin.getConfig().getInt("combat.max-relic-steals", 3); }
-    public int getMaxRelicsPerTeam() { return plugin.getConfig().getInt("team.max-relics", 3); }
+    public int getMaxRelicStealsPerDowned() { return maxRelicStealsPerDowned; }
+    public int getMaxRelicsPerTeam() { return maxRelicsPerTeam; }
 }

@@ -1589,6 +1589,12 @@ public class RelicAbilityHandler implements Listener {
         pending019Relic.remove(id);
         cooldown005.remove(id);
         
+        // #017 왜곡의 닻 정리 (UUID 키 기반)
+        active017Anchor.entrySet().removeIf(e -> e.getKey().contains(id.toString()));
+        
+        // #007 돔 정리 (UUID 값 기반)
+        active007Dome.entrySet().removeIf(e -> e.getValue().equals(id.toString()));
+        
         // 결투 대상에서도 제거
         java.util.Iterator<Map.Entry<java.util.UUID, java.util.UUID>> it = active021Duel.entrySet().iterator();
         while (it.hasNext()) {

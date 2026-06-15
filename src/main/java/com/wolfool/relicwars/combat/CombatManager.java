@@ -315,7 +315,10 @@ public class CombatManager implements Manager {
 
     public boolean isInCombat(Player player) {
         Long expireTime = combatTags.get(player.getUniqueId());
-        return expireTime != null && expireTime > System.currentTimeMillis();
+        if (expireTime == null) return false;
+        if (expireTime > System.currentTimeMillis()) return true;
+        combatTags.remove(player.getUniqueId()); // 만료된 엔트리 자동 정리
+        return false;
     }
 
     public void handleCombatLog(Player player) {
