@@ -70,6 +70,22 @@ public class RelicAbilityHandler implements Listener {
     public final Map<UUID, LeapData> active006Leap = new HashMap<>(); // #006 차원 도약석 데이터
     // Batch 5 추가
     public final Set<UUID> active003TrackerWait = new HashSet<>(); // #003 추적 유물 번호 입력 대기 상태
+
+    // === 태스크 추적 시스템 (cleanupPlayer에서 일괄 취소) ===
+    private final Map<UUID, java.util.List<org.bukkit.scheduler.BukkitTask>> activeTasks = new HashMap<>();
+
+    /** 플레이어의 태스크를 추적 목록에 등록 */
+    public void trackTask(UUID playerId, org.bukkit.scheduler.BukkitTask task) {
+        activeTasks.computeIfAbsent(playerId, k -> new java.util.ArrayList<>()).add(task);
+    }
+
+    /** 플레이어의 모든 추적 태스크를 취소하고 제거 */
+    private void cancelAllTasks(UUID playerId) {
+        java.util.List<org.bukkit.scheduler.BukkitTask> tasks = activeTasks.remove(playerId);
+        if (tasks != null) {
+            tasks.forEach(t -> { if (t != null && !t.isCancelled()) t.cancel(); });
+        }
+    }
     // #006용 데이터 클래스
     public static class LeapData {
         public Location origin;
@@ -977,9 +993,12 @@ public class RelicAbilityHandler implements Listener {
                 if (ticks >= 200) { this.cancel(); return; } // 10초
                 ticks += 20;
 
+                if (!player.isOnline() || !player.getWorld().equals(marker.getWorld())) { this.cancel(); return; }
+
                 for (Player p : player.getWorld().getPlayers()) {
                     if (p.equals(player)) continue;
                     if (plugin.getTeamManager().isSameTeam(player, p)) continue;
+                    if (!p.getWorld().equals(marker.getWorld())) continue;
                     if (p.getLocation().distance(marker) <= 30.0) {
                         player.sendMessage("§c  [마커] " + p.getName() + " 감지 — " + (int) p.getLocation().distance(marker) + "블록");
                     }
@@ -1433,6 +1452,7 @@ public class RelicAbilityHandler implements Listener {
 
     public void start003Tracker(Player player, int targetNum) {
         com.wolfool.relicwars.relic.RelicDefinition def = com.wolfool.relicwars.relic.RelicDefinition.getByNumber(targetNum);
+        if (def == null) { player.sendMessage("§c[절대 좌표 나침반] 유효하지 않은 유물 번호입니다."); return; }
         player.sendMessage("§d[절대 좌표 나침반] §e" + def.getName() + "§d의 좌표 추적을 시작합니다. (3분간 유지)");
 
         new BukkitRunnable() {
@@ -1483,7 +1503,7 @@ public class RelicAbilityHandler implements Listener {
     // #002 탐욕의 적출자 — 다운된 적에게서 0.5초 즉시 강탈 (CombatListener에서 처리됨)
     private boolean execute002(Player player) {
         player.sendMessage("§c[탐욕의 적출자] 이 유물은 허공에 사용하는 것이 아닙니다. 다운된 적을 우클릭하여 발동하세요.");
-        return true;
+        return false; // 쿨타임/정신력 소모 방지
     }
 
 
@@ -1505,7 +1525,7 @@ public class RelicAbilityHandler implements Listener {
         player.sendMessage("§e[태초의 별] 60초간 자유롭게 비행하며, 좌클릭으로 방어력과 무적을 무시하는 심판의 벼락을 내리꽂을 수 있습니다.");
         player.sendMessage("§e[태초의 별] 또한, 2초마다 모든 적의 위치와 상태가 공유됩니다.");
 
-        new BukkitRunnable() {
+        BukkitRunnable omegaRunnable = new BukkitRunnable() {
             int ticks = 0;
             @Override
             public void run() {
@@ -1544,7 +1564,8 @@ public class RelicAbilityHandler implements Listener {
                             " | 체력: §c" + health + " §7| 정신력: §e" + sanity);
                 }
             }
-        }.runTaskTimer(plugin, 40L, 40L); // 2초마다 실행
+        };
+        trackTask(id, omegaRunnable.runTaskTimer(plugin, 40L, 40L));
         return true;
     }
 
@@ -1588,6 +1609,9 @@ public class RelicAbilityHandler implements Listener {
         active003TrackerWait.remove(id);
         pending019Relic.remove(id);
         cooldown005.remove(id);
+        
+        // 모든 추적 태스크 일괄 취소
+        cancelAllTasks(id);
         
         // #017 왜곡의 닻 정리 (UUID 키 기반)
         active017Anchor.entrySet().removeIf(e -> e.getKey().contains(id.toString()));
