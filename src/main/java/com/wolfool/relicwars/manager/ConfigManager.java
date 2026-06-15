@@ -30,7 +30,7 @@ public class ConfigManager {
     private boolean dropRelicOnDowned;
     private String downedDropSelection;
     // 드랍 룰: {드랍개수 → [최소소유, 최대소유]}
-    private java.util.Map<Integer, int[]> downedDropRules = new java.util.HashMap<>();
+    private java.util.Map<Integer, int[]> downedDropRules = new java.util.LinkedHashMap<>();
     private String finalDeathDropSelection;
     private boolean keepInventoryOnDeath;
     private boolean friendlyFireEnabled;
@@ -106,7 +106,9 @@ public class ConfigManager {
                     int min = Integer.parseInt(parts[0].trim());
                     int max = Integer.parseInt(parts[1].trim());
                     downedDropRules.put(dropCount, new int[]{min, max});
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    plugin.getLogger().warning("[RelicWars] steal-drop-rules 파싱 실패 (key=" + key + "): " + e.getMessage());
+                }
             }
         }
         if (downedDropRules.isEmpty()) {

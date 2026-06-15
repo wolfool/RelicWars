@@ -109,11 +109,10 @@ public class RelicAcquisitionListener implements Listener {
     // ======================== 공통 스폰 유틸리티 ========================
 
     private void spawnRelicIfUnspawned(int relicNum, Location loc, Player achiever) {
-        String state = plugin.getDatabaseManager().getRelicState(relicNum);
-        if ("unspawned".equals(state)) {
+        // 원자적 check-and-update — 중복 스폰 방지
+        if (plugin.getDatabaseManager().tryClaimRelic(relicNum, "held", achiever.getUniqueId().toString(), achiever.getLocation())) {
             RelicDefinition def = RelicDefinition.getByNumber(relicNum);
             if (def != null) {
-                plugin.getDatabaseManager().updateRelicState(relicNum, "held", achiever.getUniqueId().toString(), achiever.getLocation());
                 
                 ItemStack relic = com.wolfool.relicwars.relic.RelicItemUtil.createRelicItem(def);
                 

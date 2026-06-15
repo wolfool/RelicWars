@@ -216,6 +216,20 @@ public class DatabaseManager {
     }
 
     /**
+     * 유물이 unspawned 상태일 때만 원자적으로 상태를 변경합니다.
+     * check-and-update를 하나의 synchronized 메서드에서 수행하여 Race Condition 방지.
+     * @return 성공 여부
+     */
+    public synchronized boolean tryClaimRelic(int relicNumber, String state, String ownerUuid, org.bukkit.Location loc) {
+        String currentState = getRelicState(relicNumber);
+        if (!"unspawned".equals(currentState)) {
+            return false; // 이미 다른 곳에서 스폰됨
+        }
+        updateRelicState(relicNumber, state, ownerUuid, loc);
+        return true;
+    }
+
+    /**
      * 데이터베이스 연결을 반환합니다.
      */
     public Connection getConnection() {

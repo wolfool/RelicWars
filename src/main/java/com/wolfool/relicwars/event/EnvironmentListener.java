@@ -90,7 +90,7 @@ public class EnvironmentListener implements Listener {
         Player player = event.getPlayer();
         Location to = event.getTo();
         
-        if (to == null) return;
+        if (to == null || to.getWorld() == null) return;
         
         if (to.getWorld().getEnvironment() == Environment.THE_END) {
             // 중심(0,0)에서 1000 이상 멀어지면 데미지를 주고 튕겨냄
