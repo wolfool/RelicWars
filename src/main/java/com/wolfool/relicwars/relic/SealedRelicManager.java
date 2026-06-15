@@ -288,10 +288,7 @@ public class SealedRelicManager implements Manager, Listener {
 
         Long unsealTime = targetItem.getPersistentDataContainer().get(RelicItemUtil.KEY_COOLDOWN_UNTIL, PersistentDataType.LONG);
         
-        // #001 태초의 별: 태초의 지배자(Omega) 발동 중이면 모든 봉인 타임 무시
-        boolean isOmegaActive = !plugin.getRelicAbilityHandler().active001Omega.isEmpty();
-        
-        if (!isOmegaActive && unsealTime != null && unsealTime > 0) {
+        if (unsealTime != null && unsealTime > 0) {
             player.sendMessage("§c[RelicWars] 아직 유물의 봉인이 풀리지 않았습니다!");
             return;
         }

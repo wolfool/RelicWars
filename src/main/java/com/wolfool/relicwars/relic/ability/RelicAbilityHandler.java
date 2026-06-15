@@ -1426,9 +1426,11 @@ public class RelicAbilityHandler implements Listener {
         player.sendMessage("§c[탐욕의 적출자] 이 유물은 허공에 사용하는 것이 아닙니다. 다운된 적을 우클릭하여 발동하세요.");
     }
 
-    // #001 오메가 프로토콜 — 발동 10초 뒤 반경 100블록 내 모든 플레이어 즉사 (사용 후 소멸)
+
+
+    // #001 태초의 별: 심판의 별 (60초간 비행, 무제한 벼락 포격, 좌표 실시간 중계)
     private void execute001(Player player) {
-        // 인벤토리에서 유물 삭제
+        // 인벤토리에서 유물 삭제 (1회용이므로 삭제)
         org.bukkit.inventory.ItemStack handItem = player.getInventory().getItemInMainHand();
         if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(handItem) && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(handItem) == 1) {
             handItem.setAmount(handItem.getAmount() - 1);
@@ -1440,51 +1442,58 @@ public class RelicAbilityHandler implements Listener {
         }
 
         Bukkit.broadcast(Component.text("§4========================================"));
-        Bukkit.broadcast(Component.text("§c[경고] 오메가 프로토콜이 가동되었습니다. 10초 뒤 종말이 도래합니다."));
+        Bukkit.broadcast(Component.text("§e[경고] 태초의 지배자가 강림했습니다. 심판의 별이 떠오릅니다..."));
         Bukkit.broadcast(Component.text("§4========================================"));
 
-        // 시전자 무적 및 이동 불가
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 200, 255, false, false));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 200, 128, false, false));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 200, 255, false, false));
+        UUID id = player.getUniqueId();
+        active001Omega.add(id);
         
-        Location origin = player.getLocation().clone();
+        // 60초간 비행 허용
+        player.setAllowFlight(true);
+        player.setFlying(true);
+        player.sendMessage("§e[태초의 별] 60초간 자유롭게 비행하며, 좌클릭으로 방어력과 무적을 무시하는 심판의 벼락을 내리꽂을 수 있습니다.");
+        player.sendMessage("§e[태초의 별] 또한, 2초마다 모든 적의 위치와 상태가 공유됩니다.");
 
         new BukkitRunnable() {
             int ticks = 0;
             @Override
             public void run() {
-                if (!player.isOnline()) {
+                if (!player.isOnline() || !active001Omega.contains(id)) {
                     this.cancel();
+                    active001Omega.remove(id);
                     return;
                 }
-                
-                ticks += 20; // 1초
-                int left = 10 - (ticks / 20);
 
-                if (left > 0) {
-                    Bukkit.broadcast(Component.text("§c[오메가 프로토콜] 종말까지... " + left + "초"));
-                    origin.getWorld().playSound(origin, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.5f);
-                } else {
+                ticks += 40; // 2초마다
+                if (ticks > 1200) { // 60초 종료
                     this.cancel();
-                    Bukkit.broadcast(Component.text("§0========================================"));
-                    Bukkit.broadcast(Component.text("§4[오메가 프로토콜] 종말이 도래했습니다."));
-                    Bukkit.broadcast(Component.text("§0========================================"));
-
-                    origin.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION_EMITTER, origin, 1);
-                    origin.getWorld().playSound(origin, org.bukkit.Sound.ENTITY_WITHER_SPAWN, 2.0f, 0.5f);
-
-                    for (Player p : origin.getWorld().getPlayers()) {
-                        if (p.equals(player)) continue;
-                        if (p.getLocation().distanceSquared(origin) <= 10000) { // 100블록 반경
-                            // 모든 방어/무적 무시 절대 즉사
-                            p.setHealth(0.0);
-                            p.sendMessage("§4[종말] 오메가 프로토콜에 의해 소멸했습니다.");
+                    active001Omega.remove(id);
+                    if (player.isOnline()) {
+                        player.sendMessage("§c[태초의 별] 태초의 지배자 권능이 소멸했습니다.");
+                        if (player.getGameMode() != org.bukkit.GameMode.CREATIVE && player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
+                            player.setAllowFlight(false);
+                            player.setFlying(false);
                         }
                     }
+                    return;
+                }
+
+                // 적 탐색 및 중계 (2초 주기)
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (p.equals(player)) continue;
+                    if (plugin.getTeamManager().isSameTeam(player, p)) continue;
+
+                    int x = p.getLocation().getBlockX();
+                    int y = p.getLocation().getBlockY();
+                    int z = p.getLocation().getBlockZ();
+                    int health = (int) p.getHealth();
+                    int sanity = plugin.getSanityManager().getSanity(p);
+
+                    player.sendMessage("§b[태초의 관측] §f" + p.getName() + " §7- 위치: " + x + ", " + y + ", " + z + 
+                            " | 체력: §c" + health + " §7| 정신력: §e" + sanity);
                 }
             }
-        }.runTaskTimer(plugin, 0L, 20L);
+        }.runTaskTimer(plugin, 40L, 40L); // 2초마다 실행
     }
 
     // ======================== 유틸리티 ========================
