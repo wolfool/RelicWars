@@ -215,6 +215,4 @@ public class RelicManager implements Manager {
         }
         return unspawned;
     }
-    public boolean isOnCooldown(org.bukkit.entity.Player p, int id) { return false; }
-    public void setCooldown(org.bukkit.entity.Player p, int id) {}
 }

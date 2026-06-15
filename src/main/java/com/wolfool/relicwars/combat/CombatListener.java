@@ -203,14 +203,16 @@ public class CombatListener implements Listener {
         // #002 탐욕의 적출자 발동 (우클릭만으로 가능, 웅크리기 불필요)
         org.bukkit.inventory.ItemStack handItem = stealer.getInventory().getItemInMainHand();
         if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(handItem) && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(handItem) == 2) {
-            if (!plugin.getRelicManager().isOnCooldown(stealer, 2)) {
+            if (!com.wolfool.relicwars.relic.RelicItemUtil.isOnCooldown(handItem)) {
                 if (plugin.getSanityManager().consumeSanity(stealer, 30)) {
                     event.setCancelled(true);
+                    com.wolfool.relicwars.relic.RelicItemUtil.startCooldown(handItem, com.wolfool.relicwars.relic.RelicDefinition.getByNumber(2).getCooldownSeconds());
                     start002Extract(stealer, target);
                     return;
                 }
             } else {
-                stealer.sendMessage("§c[탐욕의 적출자] 아직 쿨타임 중입니다!");
+                int remaining = com.wolfool.relicwars.relic.RelicItemUtil.getRemainingCooldownSeconds(handItem);
+                stealer.sendMessage("§c[탐욕의 적출자] 쿨타임 중입니다! (" + com.wolfool.relicwars.relic.RelicItemUtil.formatCooldown(remaining) + ")");
             }
         }
 
@@ -253,8 +255,7 @@ public class CombatListener implements Listener {
                 if (ticks >= 10) { // 0.5초
                     this.cancel();
                     
-                    // 적출 성공 (쿨타임 적용)
-                    plugin.getRelicManager().setCooldown(stealer, 2); // 120분
+                    // 적출 성공 (쿨타임은 start002Extract 호출 전에 이미 적용됨)
 
                     // 대상 사망 처리 및 모든 유물 드랍
                     java.util.List<org.bukkit.inventory.ItemStack> allRelics = plugin.getRelicManager().getPlayerRelics(target);

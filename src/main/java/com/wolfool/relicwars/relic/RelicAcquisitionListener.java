@@ -130,4 +130,13 @@ public class RelicAcquisitionListener implements Listener {
             }
         }
     }
+
+    /**
+     * 플러그인 종료 시 태스크 취소 및 메모리 정리
+     */
+    public void shutdown() {
+        if (fallTrackerTask != null && !fallTrackerTask.isCancelled()) fallTrackerTask.cancel();
+        fallStartY.clear();
+        reviveTracker025.clear();
+    }
 }

@@ -146,6 +146,7 @@ public final class RelicWars extends JavaPlugin {
         if (eventManager != null) eventManager.shutdown();
         if (combatManager != null) combatManager.shutdown();
         if (sealedRelicManager != null) sealedRelicManager.shutdown();
+        if (acquisitionListener != null) acquisitionListener.shutdown();
         if (relicManager != null) relicManager.shutdown();
 
         // --- 데이터베이스 연결 종료 ---
