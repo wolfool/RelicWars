@@ -168,6 +168,13 @@ public class CombatListener implements Listener {
     }
 
     private void handleDownedDamage(EntityDamageEvent event, Player victim) {
+        // 보이드 추락은 무적 및 환경 면역을 무시하고 무조건 최종 사망 처리 (무한 추락 방지)
+        if (event.getCause() == EntityDamageEvent.DamageCause.VOID) {
+            event.setCancelled(true);
+            combatManager.killPlayer(victim, null);
+            return;
+        }
+
         // 무적 시간 중이면 무조건 캔슬
         if (combatManager.isInvincible(victim)) {
             event.setCancelled(true);

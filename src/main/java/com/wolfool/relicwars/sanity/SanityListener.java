@@ -16,6 +16,12 @@ public class SanityListener implements Listener {
     }
 
     @EventHandler
+    public void onPlayerQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+        // 플레이어 종료 시 정신력 비동기 저장 및 맵 정리
+        plugin.getSanityManager().saveAndRemovePlayerAsync(event.getPlayer());
+    }
+
+    @EventHandler
     public void onConsume(PlayerItemConsumeEvent event) {
         Player player = event.getPlayer();
         

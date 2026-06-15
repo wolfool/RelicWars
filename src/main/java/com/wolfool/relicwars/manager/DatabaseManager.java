@@ -103,41 +103,44 @@ public class DatabaseManager {
      * 유물의 현재 상태(보유 중인지, 바닥/상자에 방치되었는지)와 위치를 업데이트합니다.
      */
     public void updateRelicState(int relicNumber, String state, String ownerUuid, org.bukkit.Location loc) {
-        String query = """
-            INSERT INTO relic_ownership (relic_number, owner_uuid, state, location_world, location_x, location_y, location_z, dropped_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(relic_number) DO UPDATE SET
-                owner_uuid = excluded.owner_uuid,
-                state = excluded.state,
-                location_world = excluded.location_world,
-                location_x = excluded.location_x,
-                location_y = excluded.location_y,
-                location_z = excluded.location_z,
-                dropped_at = CASE WHEN excluded.state = 'dropped' AND relic_ownership.state != 'dropped' 
-                                  THEN excluded.dropped_at 
-                                  ELSE relic_ownership.dropped_at END
-        """;
+        if (connection == null) return;
+        
+        org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            String query = """
+                INSERT INTO relic_ownership (relic_number, owner_uuid, state, dropped_world, dropped_x, dropped_y, dropped_z, dropped_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(relic_number) DO UPDATE SET 
+                    owner_uuid = excluded.owner_uuid,
+                    state = excluded.state,
+                    dropped_world = excluded.dropped_world,
+                    dropped_x = excluded.dropped_x,
+                    dropped_y = excluded.dropped_y,
+                    dropped_z = excluded.dropped_z,
+                    dropped_at = CASE WHEN excluded.state = 'sealed' THEN excluded.dropped_at 
+                                      ELSE relic_ownership.dropped_at END
+            """;
 
-        try (java.sql.PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setInt(1, relicNumber);
-            pstmt.setString(2, ownerUuid);
-            pstmt.setString(3, state);
-            if (loc != null && loc.getWorld() != null) {
-                pstmt.setString(4, loc.getWorld().getName());
-                pstmt.setDouble(5, loc.getX());
-                pstmt.setDouble(6, loc.getY());
-                pstmt.setDouble(7, loc.getZ());
-            } else {
-                pstmt.setString(4, null);
-                pstmt.setDouble(5, 0);
-                pstmt.setDouble(6, 0);
-                pstmt.setDouble(7, 0);
+            try (java.sql.PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setInt(1, relicNumber);
+                pstmt.setString(2, ownerUuid);
+                pstmt.setString(3, state);
+                if (loc != null && loc.getWorld() != null) {
+                    pstmt.setString(4, loc.getWorld().getName());
+                    pstmt.setDouble(5, loc.getX());
+                    pstmt.setDouble(6, loc.getY());
+                    pstmt.setDouble(7, loc.getZ());
+                } else {
+                    pstmt.setString(4, null);
+                    pstmt.setDouble(5, 0);
+                    pstmt.setDouble(6, 0);
+                    pstmt.setDouble(7, 0);
+                }
+                pstmt.setLong(8, System.currentTimeMillis());
+                pstmt.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.WARNING, "유물 상태 업데이트 실패: #" + relicNumber, e);
             }
-            pstmt.setLong(8, System.currentTimeMillis());
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            plugin.getLogger().log(Level.WARNING, "유물 상태 업데이트 실패: #" + relicNumber, e);
-        }
+        });
     }
 
     /**

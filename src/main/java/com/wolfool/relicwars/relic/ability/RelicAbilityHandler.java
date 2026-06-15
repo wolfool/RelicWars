@@ -36,6 +36,10 @@ public class RelicAbilityHandler implements Listener {
 
     private final RelicWars plugin;
     
+    public final Set<UUID> active001Omega = new HashSet<>();
+    public final Set<UUID> active005DamageReduction = new HashSet<>();
+    private final java.util.Map<UUID, Long> cooldown005 = new java.util.HashMap<>();
+    
     // 버프 상태 관리 맵 (UUID)
     public final Set<UUID> active029FallImmunity = new HashSet<>();
     public final Set<UUID> active027FireImmunity = new HashSet<>();
@@ -83,7 +87,7 @@ public class RelicAbilityHandler implements Listener {
         }
 
         // 정신력 소모 체크 (3단계: 10, 4단계: 20, 5단계: 30)
-        int sanityCost = getSanityCost(num);
+        int sanityCost = getSanityCost(num, player);
         if (sanityCost > 0) {
             if (!plugin.getSanityManager().consumeSanity(player, sanityCost)) {
                 return; // 정신력 부족
@@ -616,6 +620,26 @@ public class RelicAbilityHandler implements Listener {
         }, 6000L); // 5분
     }
 
+    public void execute020OptionRandom(Player player) {
+        player.sendMessage("§d[소문의 등불] §f무작위 가짜 소문을 퍼뜨립니다.");
+        int x = (int)(Math.random() * 2000 - 1000);
+        int z = (int)(Math.random() * 2000 - 1000);
+        String dir = getCardinalDirection(new org.bukkit.util.Vector(x - player.getLocation().getX(), 0, z - player.getLocation().getZ()));
+        com.wolfool.relicwars.util.RumorUtil.broadcastRumor(new org.bukkit.Location(player.getWorld(), x, 60, z), "§b[소문] " + dir + "쪽에서 낯선 유물의 기운이 느껴집니다.");
+    }
+
+    public final java.util.Set<java.util.UUID> active020PingMode = new java.util.HashSet<>();
+    public void execute020OptionPing(Player player) {
+        player.sendMessage("§d[소문의 등불] §f기만 전술 모드를 켭니다.");
+        active020PingMode.add(player.getUniqueId());
+        player.sendMessage("§e  [정보] 5분 안에 채팅창에 가짜 소문을 낼 본인의 유물 번호(숫자)를 입력하세요.");
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (active020PingMode.remove(player.getUniqueId())) {
+                if (player.isOnline()) player.sendMessage("§c[소문의 등불] 기만 전술 시간이 만료되었습니다.");
+            }
+        }, 6000L);
+    }
+
     // ======================== Batch 3: #019 ~ #015 ========================
 
     private org.bukkit.entity.Item pending019Relic;
@@ -1112,6 +1136,54 @@ public class RelicAbilityHandler implements Listener {
         player.sendMessage("§a[차원 도약석] 시간을 되감아 원래 위치로 복귀했습니다! 상태가 회복됩니다.");
     }
 
+    // #005 불멸의 심장 (자동 발동)
+    public boolean trigger005ImmortalHeart(Player player) {
+        java.util.UUID id = player.getUniqueId();
+        
+        // 쿨다운 확인 (10분 = 600초)
+        long now = System.currentTimeMillis();
+        long next = cooldown005.getOrDefault(id, 0L);
+        if (now < next) {
+            return false; // 아직 쿨타임
+        }
+        
+        // 정신력 확인 (코스트 30)
+        if (!plugin.getSanityManager().consumeSanity(player, 30)) {
+            player.sendMessage("§c[불멸의 심장] 정신력이 부족하여 불멸의 심장이 반응하지 않았습니다!");
+            return false; // 정신력 부족
+        }
+        
+        // 쿨타임 적용 (600초)
+        cooldown005.put(id, System.currentTimeMillis() + 600000L);
+        
+        // 부활 처리
+        player.setHealth(player.getAttribute(org.bukkit.attribute.Attribute.valueOf("GENERIC_MAX_HEALTH")).getValue()); // 풀피
+        player.sendMessage("§c[불멸의 심장] 죽음을 거부하고 다시 일어섭니다!");
+        
+        // 주변 넉백 및 번개
+        for (org.bukkit.entity.Entity e : player.getNearbyEntities(8, 8, 8)) {
+            if (!(e instanceof Player p)) continue;
+            if (!plugin.getTeamManager().isSameTeam(player, p)) {
+                org.bukkit.util.Vector kb = p.getLocation().toVector().subtract(player.getLocation().toVector()).normalize().multiply(1.5).setY(0.5);
+                p.setVelocity(kb);
+            }
+        }
+        
+        org.bukkit.Bukkit.broadcast(net.kyori.adventure.text.Component.text("§6[경고] 누군가 불멸의 심장을 통해 부활했습니다! (" + player.getLocation().getBlockX() + ", ?, " + player.getLocation().getBlockZ() + ")"));
+        
+        // 데미지 50% 감소
+        active005DamageReduction.add(id);
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            active005DamageReduction.remove(id);
+            if (player.isOnline()) player.sendMessage("§c[불멸의 심장] 데미지 감소 효과가 종료되었습니다.");
+        }, 160L);
+        
+        player.getWorld().strikeLightningEffect(player.getLocation());
+        return true;
+    }
+
+
+
     // #008 그림자 막 — 3분간 모든 탐지 무효화 + 가짜 신호
     private void execute008(Player player) {
         player.sendMessage("§8[그림자 막] 3분간 팀 전체가 모든 탐지에서 사라집니다!");
@@ -1417,7 +1489,7 @@ public class RelicAbilityHandler implements Listener {
 
     // ======================== 유틸리티 ========================
 
-    private String getCardinalDirection(Vector dir) {
+    public String getCardinalDirection(Vector dir) {
         double angle = Math.toDegrees(Math.atan2(dir.getZ(), dir.getX()));
         if (angle < 0) angle += 360;
 
@@ -1438,11 +1510,13 @@ public class RelicAbilityHandler implements Listener {
      * 4단계(#010~#006): 20
      * 5단계(#005~#001): 30
      */
-    private int getSanityCost(int relicNumber) {
+    private int getSanityCost(int relicNumber, Player player) {
+        if (active001Omega.contains(player.getUniqueId())) return 0; // 태초의 별 발동 중이면 코스트 면제
         if (relicNumber >= 20) return 0;   // 1~2단계
         if (relicNumber >= 11) return 10;  // 3단계
         if (relicNumber >= 6) return 20;   // 4단계
         if (relicNumber >= 1) return 30;   // 5단계
         return 0;
     }
+
 }

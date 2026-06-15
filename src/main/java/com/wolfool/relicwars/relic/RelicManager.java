@@ -93,6 +93,10 @@ public class RelicManager implements Manager {
     /**
      * 플레이어가 소지 중인 유물 개수를 반환합니다.
      */
+    public boolean hasRelic(Player player, int relicNumber) {
+        return getPlayerRelicNumbers(player).contains(relicNumber);
+    }
+
     public int countPlayerRelics(Player player) {
         return getPlayerRelics(player).size();
     }

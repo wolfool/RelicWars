@@ -6,12 +6,14 @@ C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\command\Rel
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\command\TeamCommand.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\ending\EndingManager.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\event\BloodMoonTask.java
+C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\event\EnvironmentListener.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\event\EventManager.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\event\ForgottenRelicTask.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\manager\ConfigManager.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\manager\DatabaseManager.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\manager\Manager.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\relic\ability\RelicAbilityHandler.java
+C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\relic\FootprintTracker.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\relic\InteractionEffects.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\relic\RelicAcquisitionListener.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\relic\RelicDefinition.java
@@ -23,3 +25,4 @@ C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\RelicWars.j
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\sanity\SanityListener.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\sanity\SanityManager.java
 C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\team\TeamManager.java
+C:\Users\pmh75\Desktop\minecraft\src\main\java\com\wolfool\relicwars\util\RumorUtil.java

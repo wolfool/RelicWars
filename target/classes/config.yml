@@ -50,6 +50,7 @@ sanity:
 # --- 팀(Team) 설정 ---
 team:
   max-members: 2                 # 팀 최대 인원
+  max-total-relics-to-form: 8    # 팀 결성 시 파티원 전체 유물 개수 합계 제한
   invite-expire-seconds: 60      # 팀 초대 만료 시간
 
 # --- 이벤트(Event) 설정 ---

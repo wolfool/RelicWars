@@ -78,6 +78,13 @@ public class CombatManager implements Manager {
      * 체력이 0이 되는 순간 호출되어야 합니다.
      */
     public void setDowned(Player player) {
+        // #005 불멸의 심장 소지 여부 감지 및 발동
+        if (plugin.getRelicManager().hasRelic(player, 5)) {
+            if (plugin.getRelicAbilityHandler().trigger005ImmortalHeart(player)) {
+                return; // 발동 성공 시 다운을 무시하고 빠져나감!
+            }
+        }
+
         downedPlayers.put(player.getUniqueId(), System.currentTimeMillis());
         executeHits.put(player.getUniqueId(), 0);
         stealCounts.put(player.getUniqueId(), 0);
@@ -138,7 +145,7 @@ public class CombatManager implements Manager {
                         player.sendMessage("§c[RelicWars] 구조받지 못해 사망했습니다...");
                         Bukkit.broadcast(Component.text("§c[RelicWars] §f" + player.getName() + "§c님이 구조받지 못해 사망했습니다."));
                         com.wolfool.relicwars.relic.InteractionEffects.playAutoExecuteEffect(player);
-                        killPlayer(player, null);
+                        executePlayer(player, null);
                         return;
                     }
 
@@ -185,7 +192,7 @@ public class CombatManager implements Manager {
         attacker.sendMessage("§e[RelicWars] 처형 타격 적중! (" + currentHits + "/" + requiredHits + ")");
 
         if (currentHits >= requiredHits) {
-            killPlayer(victim, attacker);
+            executePlayer(victim, attacker);
         }
     }
 
@@ -234,6 +241,13 @@ public class CombatManager implements Manager {
     /**
      * 유저를 사망시키고 스폰으로 보냅니다. (기획서 수정: 사망 시 Steal 규칙에 따라 추가 드랍)
      */
+    public void executePlayer(Player victim, Player attacker) {
+        clearDownedState(victim);
+        victim.setHealth(0.0);
+        victim.sendMessage("§c[RelicWars] 처형당했습니다. (추가 유물 드랍 없음)");
+        org.bukkit.Bukkit.broadcast(net.kyori.adventure.text.Component.text("§c[처형] §f" + victim.getName() + "§c님이 처형당했습니다."));
+    }
+
     public void killPlayer(Player victim, Player attacker) {
         // 사망 전 강탈 규칙 적용하여 바닥에 떨어뜨리기
         List<ItemStack> stealDrops = plugin.getRelicManager().extractStealDrop(victim);
