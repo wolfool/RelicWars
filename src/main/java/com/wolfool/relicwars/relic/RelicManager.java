@@ -26,6 +26,21 @@ public class RelicManager implements Manager {
 
     @Override
     public void initialize() {
+        // DB에서 이미 스폰된 유물 로드
+        java.sql.Connection conn = plugin.getDatabaseManager().getConnection();
+        if (conn != null) {
+            try (var stmt = conn.createStatement();
+                 var rs = stmt.executeQuery(
+                     "SELECT relic_number FROM relic_ownership WHERE state != 'unspawned'")) {
+                while (rs.next()) {
+                    spawnedRelics.add(rs.getInt("relic_number"));
+                }
+                plugin.getLogger().info("§a[RelicWars] 스폰된 유물 " + spawnedRelics.size() + "개 로드 완료.");
+            } catch (Exception e) {
+                plugin.getLogger().warning("[RelicWars] 스폰 이력 로드 실패: " + e.getMessage());
+            }
+        }
+
         // 리스너 등록
         Bukkit.getPluginManager().registerEvents(new RelicListener(plugin, this), plugin);
         plugin.getLogger().info("§a[RelicWars] RelicManager 초기화 완료.");

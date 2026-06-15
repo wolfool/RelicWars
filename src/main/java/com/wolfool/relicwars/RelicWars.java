@@ -68,45 +68,55 @@ public final class RelicWars extends JavaPlugin {
         getLogger().info("§a[RelicWars] SQLite 데이터베이스 연결 완료.");
 
         // --- 3. 매니저 등록 ---
-        relicManager = new RelicManager(this);
-        relicManager.initialize();
-        
-        sealedRelicManager = new SealedRelicManager(this);
-        sealedRelicManager.initialize();
-        
-        combatManager = new CombatManager(this);
-        combatManager.initialize();
+        try {
+            relicManager = new RelicManager(this);
+            relicManager.initialize();
+            
+            sealedRelicManager = new SealedRelicManager(this);
+            sealedRelicManager.initialize();
+            
+            combatManager = new CombatManager(this);
+            combatManager.initialize();
 
-        eventManager = new EventManager(this);
-        eventManager.initialize();
+            eventManager = new EventManager(this);
+            eventManager.initialize();
 
-        teamManager = new TeamManager(this);
-        teamManager.initialize();
+            teamManager = new TeamManager(this);
+            teamManager.initialize();
 
-        bossManager = new BossManager(this);
-        bossManager.initialize();
+            bossManager = new BossManager(this);
+            bossManager.initialize();
 
-        endingManager = new EndingManager(this);
-        endingManager.initialize();
+            endingManager = new EndingManager(this);
+            endingManager.initialize();
 
-        relicAbilityHandler = new RelicAbilityHandler(this);
+            relicAbilityHandler = new RelicAbilityHandler(this);
 
-        sanityManager = new SanityManager(this);
-        sanityManager.initialize();
+            sanityManager = new SanityManager(this);
+            sanityManager.initialize();
 
-        footprintTracker = new com.wolfool.relicwars.relic.FootprintTracker(this);
-        footprintTracker.initialize();
+            footprintTracker = new com.wolfool.relicwars.relic.FootprintTracker(this);
+            footprintTracker.initialize();
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE, "§c[RelicWars] 매니저 초기화 중 오류 발생! 플러그인을 비활성화합니다.", e);
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         // --- 4. 이벤트/커맨드 등록 ---
         RelicCommand relicCommand = new RelicCommand(this);
         if (getCommand("relic") != null) {
             getCommand("relic").setExecutor(relicCommand);
             getCommand("relic").setTabCompleter(relicCommand);
+        } else {
+            getLogger().severe("§c[RelicWars] 'relic' 명령어가 plugin.yml에 없습니다!");
         }
 
         TeamCommand teamCommand = new TeamCommand(this);
         if (getCommand("team") != null) {
             getCommand("team").setExecutor(teamCommand);
+        } else {
+            getLogger().severe("§c[RelicWars] 'team' 명령어가 plugin.yml에 없습니다!");
         }
 
         acquisitionListener = new com.wolfool.relicwars.relic.RelicAcquisitionListener(this);

@@ -75,7 +75,8 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                     String currentState = plugin.getDatabaseManager().getRelicState(i);
                     if (!currentState.equals("unspawned")) continue;
                     ItemStack relic = com.wolfool.relicwars.relic.RelicItemUtil.createRelicItem(def);
-                    target.getInventory().addItem(relic);
+                    java.util.Map<Integer, ItemStack> overflow = target.getInventory().addItem(relic);
+                    overflow.values().forEach(item -> target.getWorld().dropItemNaturally(target.getLocation(), item));
                     plugin.getDatabaseManager().updateRelicState(i, "held", target.getUniqueId().toString(), target.getLocation());
                     given++;
                 }
@@ -98,7 +99,8 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 }
 
                 ItemStack relic = com.wolfool.relicwars.relic.RelicItemUtil.createRelicItem(def);
-                target.getInventory().addItem(relic);
+                java.util.Map<Integer, ItemStack> overflow = target.getInventory().addItem(relic);
+                overflow.values().forEach(i -> target.getWorld().dropItemNaturally(target.getLocation(), i));
                 plugin.getDatabaseManager().updateRelicState(number, "held", target.getUniqueId().toString(), target.getLocation());
                 sender.sendMessage("§a[RelicWars] " + target.getName() + "님에게 " + def.getName() + " 유물을 지급했습니다.");
             } catch (NumberFormatException e) {
@@ -364,7 +366,8 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
         }
 
         sender.getInventory().setItemInMainHand(null);
-        target.getInventory().addItem(hand);
+        java.util.Map<Integer, ItemStack> overflow = target.getInventory().addItem(hand);
+        overflow.values().forEach(i -> target.getWorld().dropItemNaturally(target.getLocation(), i));
         
         int relicNum = com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(hand);
         plugin.getDatabaseManager().updateRelicState(relicNum, "held", target.getUniqueId().toString(), target.getLocation());

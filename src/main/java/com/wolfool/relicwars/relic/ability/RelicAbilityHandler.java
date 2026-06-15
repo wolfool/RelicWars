@@ -1473,16 +1473,7 @@ public class RelicAbilityHandler implements Listener {
 
     // #001 태초의 별: 심판의 별 (60초간 비행, 무제한 벼락 포격, 좌표 실시간 중계)
     private boolean execute001(Player player) {
-        // 인벤토리에서 유물 삭제 (1회용이므로 삭제)
-        org.bukkit.inventory.ItemStack handItem = player.getInventory().getItemInMainHand();
-        if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(handItem) && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(handItem) == 1) {
-            handItem.setAmount(handItem.getAmount() - 1);
-        } else {
-            org.bukkit.inventory.ItemStack offItem = player.getInventory().getItemInOffHand();
-            if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(offItem) && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(offItem) == 1) {
-                offItem.setAmount(offItem.getAmount() - 1);
-            }
-        }
+        // 넘버링 유물은 파괴되지 않음 — 쿨타임으로만 재사용 제한
 
         Bukkit.broadcast(Component.text("§4========================================"));
         Bukkit.broadcast(Component.text("§e[경고] 태초의 지배자가 강림했습니다. 심판의 별이 떠오릅니다..."));
