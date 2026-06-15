@@ -31,7 +31,7 @@ public class ForgottenRelicTask extends BukkitRunnable {
             if (conn == null || conn.isClosed()) return;
 
             // state 가 'dropped' 인 유물들 검색
-            String query = "SELECT relic_number, location_world, location_x, location_y, location_z, dropped_at FROM relic_ownership WHERE state = 'dropped'";
+            String query = "SELECT relic_number, dropped_world, dropped_x, dropped_y, dropped_z, dropped_at FROM relic_ownership WHERE state = 'dropped'";
             try (PreparedStatement pstmt = conn.prepareStatement(query);
                  ResultSet rs = pstmt.executeQuery()) {
 
@@ -40,10 +40,10 @@ public class ForgottenRelicTask extends BukkitRunnable {
                 while (rs.next()) {
                     int relicNum = rs.getInt("relic_number");
                     long droppedAt = rs.getLong("dropped_at");
-                    String world = rs.getString("location_world");
-                    double x = rs.getDouble("location_x");
-                    double y = rs.getDouble("location_y");
-                    double z = rs.getDouble("location_z");
+                    String world = rs.getString("dropped_world");
+                    double x = rs.getDouble("dropped_x");
+                    double y = rs.getDouble("dropped_y");
+                    double z = rs.getDouble("dropped_z");
 
                     long minutesElapsed = (now - droppedAt) / (1000 * 60);
 

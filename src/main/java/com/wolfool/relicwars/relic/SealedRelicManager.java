@@ -119,19 +119,19 @@ public class SealedRelicManager implements Manager, Listener {
         if (conn == null) return;
         
         try {
-            String query = "SELECT relic_number, location_world, location_x, location_y, location_z, dropped_at FROM relic_ownership WHERE state = 'sealed'";
+            String query = "SELECT relic_number, dropped_world, dropped_x, dropped_y, dropped_z, dropped_at FROM relic_ownership WHERE state = 'sealed'";
             try (java.sql.PreparedStatement pstmt = conn.prepareStatement(query);
                  java.sql.ResultSet rs = pstmt.executeQuery()) {
                 
                 while (rs.next()) {
                     int relicNum = rs.getInt("relic_number");
-                    String worldName = rs.getString("location_world");
+                    String worldName = rs.getString("dropped_world");
                     if (worldName == null) continue;
                     
                     org.bukkit.World world = Bukkit.getWorld(worldName);
                     if (world == null) continue;
                     
-                    Location loc = new Location(world, rs.getDouble("location_x"), rs.getDouble("location_y"), rs.getDouble("location_z"));
+                    Location loc = new Location(world, rs.getDouble("dropped_x"), rs.getDouble("dropped_y"), rs.getDouble("dropped_z"));
                     long droppedAt = rs.getLong("dropped_at");
                     
                     // DB에서 가져온 기본 봉인 시간 (config 값 임의 차용 혹은 기본 45초)
