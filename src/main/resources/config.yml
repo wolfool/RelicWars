@@ -40,6 +40,7 @@ combat:
 
   combat-tag-seconds: 15         # 전투 상태(Combat Tag) 지속 시간
   downed-auto-execute-seconds: 60  # 다운 후 자동 확킬까지의 시간 (초). 0이면 비활성화
+  max-relic-steals: 3              # 다운된 상대에서 최대 강탈 가능한 유물 수
 
 # --- 정신력(Sanity) 설정 ---
 sanity:
@@ -52,6 +53,7 @@ team:
   max-members: 2                 # 팀 최대 인원
   max-total-relics-to-form: 8    # 팀 결성 시 파티원 전체 유물 개수 합계 제한
   invite-expire-seconds: 60      # 팀 초대 만료 시간
+  max-relics: 3                  # 팀당 최대 유물 수
 
 # --- 이벤트(Event) 설정 ---
 event:
@@ -74,6 +76,10 @@ event:
         hint-type: "500-blur"    # X: 500 단위 흐림
       - minutes: 120
         hint-type: "50-y-blur"   # X, Z 50단위 흐림 + Y좌표 포함
+
+  # 제한 설정
+  disable-end-cities: true       # 엔드 시티 접근 차단
+  disable-elytra: true           # 겉날개 사용 차단
 
 # --- 엔딩(Ending) 설정 ---
 ending:

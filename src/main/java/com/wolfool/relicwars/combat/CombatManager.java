@@ -346,6 +346,7 @@ public class CombatManager implements Manager {
      * (보이드 추락 시 랜덤 좌표로 이동)
      */
     public Location getSafeDropLocation(Location loc) {
+        loc = loc.clone(); // 원본 Location 변경 방지
         org.bukkit.World world = loc.getWorld();
         if (world == null) return loc;
 
