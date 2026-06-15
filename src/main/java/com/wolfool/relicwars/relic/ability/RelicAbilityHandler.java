@@ -642,7 +642,7 @@ public class RelicAbilityHandler implements Listener {
 
     // ======================== Batch 3: #019 ~ #015 ========================
 
-    private org.bukkit.entity.Item pending019Relic;
+    private final java.util.Map<java.util.UUID, org.bukkit.entity.Item> pending019Relic = new java.util.HashMap<>();
 
     // #019 봉인의 바늘 — 봉인 유물의 봉인 시간을 절반으로 단축
     private void execute019(Player player) {
@@ -652,7 +652,7 @@ public class RelicAbilityHandler implements Listener {
             return;
         }
         
-        pending019Relic = nearest;
+        pending019Relic.put(player.getUniqueId(), nearest);
         Inventory inv = Bukkit.createInventory(null, 9, Component.text("§3봉인의 바늘"));
         inv.setItem(3, createGuiItem(Material.SUGAR, "§a[시간 단축]", "§7해당 유물의 남은 봉인 시간을", "§7§l절반§7으로 단축합니다."));
         inv.setItem(5, createGuiItem(Material.CLOCK, "§c[시간 연장]", "§7해당 유물의 남은 봉인 시간을", "§7§l2배§7로 연장합니다."));
@@ -662,26 +662,28 @@ public class RelicAbilityHandler implements Listener {
     }
 
     public void execute019Option1(Player player) {
-        if (pending019Relic == null || !pending019Relic.isValid()) {
+        org.bukkit.entity.Item pRelic = pending019Relic.get(player.getUniqueId());
+        if (pRelic == null || !pRelic.isValid()) {
             player.sendMessage("§c[봉인의 바늘] 대상 유물이 사라졌습니다.");
             return;
         }
-        plugin.getSealedRelicManager().reduceSealTime(pending019Relic, 0.5);
-        player.sendMessage("§d[봉인의 바늘] " + pending019Relic.getName() + "의 봉인 시간을 §l절반§d으로 단축했습니다!");
-        pending019Relic = null;
+        plugin.getSealedRelicManager().reduceSealTime(pRelic, 0.5);
+        player.sendMessage("§d[봉인의 바늘] " + pRelic.getName() + "의 봉인 시간을 §l절반§d으로 단축했습니다!");
+        pending019Relic.remove(player.getUniqueId());
     }
 
     public void execute019Option2(Player player) {
-        if (pending019Relic == null || !pending019Relic.isValid()) {
+        org.bukkit.entity.Item pRelic = pending019Relic.get(player.getUniqueId());
+        if (pRelic == null || !pRelic.isValid()) {
             player.sendMessage("§c[봉인의 바늘] 대상 유물이 사라졌습니다.");
             return;
         }
         // SealedRelicManager에 시간을 늘리는 메소드가 없으므로, 다시 reduceSealTime(relic, 2.0) 하거나 
         // 직접 PDC를 수정해야 하지만, reduceSealTime(relic, factor) 가 곱하기 연산이라면 가능합니다.
         // 확인 필요. 우선 reduceSealTime(relic, 2.0)로 연장
-        plugin.getSealedRelicManager().reduceSealTime(pending019Relic, 2.0);
-        player.sendMessage("§d[봉인의 바늘] " + pending019Relic.getName() + "의 봉인 시간을 §l2배§d로 연장했습니다!");
-        pending019Relic = null;
+        plugin.getSealedRelicManager().reduceSealTime(pRelic, 2.0);
+        player.sendMessage("§d[봉인의 바늘] " + pRelic.getName() + "의 봉인 시간을 §l2배§d로 연장했습니다!");
+        pending019Relic.remove(player.getUniqueId());
     }
 
     // #018 흔적 렌즈 — 200블록 내 유물 보유자의 발자국 파티클
@@ -1157,7 +1159,7 @@ public class RelicAbilityHandler implements Listener {
         cooldown005.put(id, System.currentTimeMillis() + 600000L);
         
         // 부활 처리
-        player.setHealth(player.getAttribute(org.bukkit.attribute.Attribute.valueOf("GENERIC_MAX_HEALTH")).getValue()); // 풀피
+        player.setHealth(java.util.Objects.requireNonNull(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)).getValue()); // 풀피
         player.sendMessage("§c[불멸의 심장] 죽음을 거부하고 다시 일어섭니다!");
         
         // 주변 넉백 및 번개
@@ -1293,7 +1295,7 @@ public class RelicAbilityHandler implements Listener {
         player.sendMessage("§7  체력이 0이 되어야 할 순간 체력 100%로 부활하며 주변 적을 밀쳐냅니다.");
 
         UUID id = player.getUniqueId();
-        active029FallImmunity.add(id); // 임시로 같은 Set 활용 (별도 Set 필요하지만 MVP)
+        active005DamageReduction.add(id); // 전용 Set 사용
 
         // 8초간 받는 데미지 50% 감소
         player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 160, 1, false, false));
@@ -1496,7 +1498,47 @@ public class RelicAbilityHandler implements Listener {
         }.runTaskTimer(plugin, 40L, 40L); // 2초마다 실행
     }
 
+
     // ======================== 유틸리티 ========================
+    
+    public void cleanupPlayer(Player player) {
+        java.util.UUID id = player.getUniqueId();
+        
+        // #001 비행 모드 해제 (반드시 Set 제거 전에 실행)
+        if (active001Omega.contains(id)) {
+            if (player.isOnline() && player.getGameMode() != org.bukkit.GameMode.CREATIVE 
+                    && player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
+                player.setAllowFlight(false);
+                player.setFlying(false);
+            }
+        }
+        
+        active001Omega.remove(id);
+        active005DamageReduction.remove(id);
+        active029FallImmunity.remove(id);
+        active027FireImmunity.remove(id);
+        active025FastRevive.remove(id);
+        active023Marked.remove(id);
+        active021Duel.remove(id);
+        active020ScanMode.remove(id);
+        active020PingMode.remove(id);
+        active015Casting.remove(id);
+        active010EMP.remove(id);
+        active008Shadow.remove(id);
+        active006Leap.remove(id);
+        active003TrackerWait.remove(id);
+        cooldown005.remove(id);
+        
+        // 결투 대상에서도 제거
+        java.util.Iterator<Map.Entry<java.util.UUID, java.util.UUID>> it = active021Duel.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<java.util.UUID, java.util.UUID> entry = it.next();
+            if (entry.getValue().equals(id)) {
+                it.remove();
+            }
+        }
+    }
+
 
     public String getCardinalDirection(Vector dir) {
         double angle = Math.toDegrees(Math.atan2(dir.getZ(), dir.getX()));

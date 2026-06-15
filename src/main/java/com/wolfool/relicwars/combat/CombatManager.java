@@ -284,7 +284,7 @@ public class CombatManager implements Manager {
         clearDownedState(player);
 
         int reviveHp = plugin.getConfigManager().getReviveHealth();
-        player.setHealth(Math.min(reviveHp, player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue()));
+        player.setHealth(Math.min(reviveHp, java.util.Objects.requireNonNull(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)).getValue()));
 
         player.sendMessage("§a[RelicWars] 팀원의 도움으로 구조되었습니다!");
         player.sendTitle("§a§lREVIVED", "§f전투에 복귀합니다.", 10, 40, 10);

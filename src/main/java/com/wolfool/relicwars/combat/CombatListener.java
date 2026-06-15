@@ -97,6 +97,7 @@ public class CombatListener implements Listener {
             if (event.getCause() == EntityDamageEvent.DamageCause.VOID) {
                 event.setCancelled(true);
                 combatManager.killPlayer(player, null);
+        plugin.getRelicAbilityHandler().cleanupPlayer(player);
                 return;
             }
             handleDownedDamage(event, player);
@@ -119,6 +120,7 @@ public class CombatListener implements Listener {
             if (event.getCause() == EntityDamageEvent.DamageCause.VOID) {
                 event.setCancelled(true);
                 combatManager.killPlayer(player, null);
+        plugin.getRelicAbilityHandler().cleanupPlayer(player);
                 return;
             }
 
@@ -139,7 +141,7 @@ public class CombatListener implements Listener {
                 plugin.getSanityManager().removeSanity(player, 30);
                 
                 // 체력 100% 회복
-                player.setHealth(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue());
+                player.setHealth(java.util.Objects.requireNonNull(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)).getValue());
                 player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE, 160, 1, false, false));
                 
                 player.sendMessage("§6[불멸의 심장] 죽음을 극복하고 부활했습니다!");
@@ -461,7 +463,9 @@ public class CombatListener implements Listener {
         if (combatManager.isDowned(player)) {
             // 다운 상태에서 나가면 즉시 사망 처리
             combatManager.killPlayer(player, null);
+        plugin.getRelicAbilityHandler().cleanupPlayer(player);
         } else {
+            plugin.getRelicAbilityHandler().cleanupPlayer(player);
             // 랜뽑 (전투 태그 중 강제 종료) 처리
             combatManager.handleCombatLog(player);
         }

@@ -80,8 +80,9 @@ public class RelicListener implements Listener {
                         for (org.bukkit.entity.Entity e : loc.getWorld().getNearbyEntities(loc, 3, 3, 3)) {
                             if (e instanceof org.bukkit.entity.Player target && !target.equals(player)) {
                                 if (plugin.getTeamManager().isSameTeam(player, target)) continue;
-                                target.setHealth(0.0);
-                                target.sendMessage("§4[심판] 태초의 지배자가 내린 벼락에 맞아 즉사했습니다.");
+                                target.sendMessage("§4[심판] 태초의 지배자가 내린 벼락에 맞았습니다!");
+                                // 다운 시스템 경유: 높은 데미지를 입혀서 다운 판정을 거침
+                                target.damage(9999.0, player);
                             }
                         }
                     }
