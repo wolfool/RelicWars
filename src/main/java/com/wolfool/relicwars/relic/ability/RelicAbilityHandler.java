@@ -1193,7 +1193,8 @@ public class RelicAbilityHandler implements Listener {
         player.teleport(targetLoc);
         player.getWorld().spawnParticle(org.bukkit.Particle.PORTAL, targetLoc, 50, 0.5, 1.0, 0.5, 0.1);
         player.getWorld().playSound(targetLoc, org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
-        player.sendMessage("§d[차원 도약석] 도약했습니다! 15초 내에 다시 사용하면 복귀합니다.");
+        player.sendMessage("§d[차원 도약석] 도약했습니다! §e15초 이내에 다시 우클릭하면 원래 위치로 복귀합니다.");
+        player.sendMessage("§d[차원 도약석] 복귀 시 도약 시점의 체력(§c" + String.format("%.1f", player.getHealth()) + "HP§d)으로 돌아갑니다.");
 
         // 15초 타이머
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -1227,7 +1228,7 @@ public class RelicAbilityHandler implements Listener {
         player.getWorld().spawnParticle(org.bukkit.Particle.PORTAL, returnLoc, 50, 0.5, 1.0, 0.5, 0.1);
         player.getWorld().playSound(returnLoc, org.bukkit.Sound.ITEM_CHORUS_FRUIT_TELEPORT, 1.0f, 1.0f);
         
-        player.sendMessage("§a[차원 도약석] 시간을 되감아 원래 위치로 복귀했습니다! 상태가 회복됩니다.");
+        player.sendMessage("§a[차원 도약석] 시간을 되감아 원래 위치로 복귀했습니다! 체력이 도약 시점(§c" + String.format("%.1f", data.health) + "HP§a)으로 회복되었습니다.");
     }
 
     // #005 불멸의 심장 (자동 발동)
