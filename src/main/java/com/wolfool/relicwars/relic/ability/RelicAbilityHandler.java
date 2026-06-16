@@ -70,6 +70,8 @@ public class RelicAbilityHandler implements Listener {
     public final Map<UUID, LeapData> active006Leap = new HashMap<>(); // #006 차원 도약석 데이터
     // Batch 5 추가
     public final Set<UUID> active003TrackerWait = new HashSet<>(); // #003 추적 유물 번호 입력 대기 상태
+    // #001 벼락 내부 쿨타임 추적
+    private final Map<UUID, Long> lightningCooldown = new HashMap<>();
 
     // === 태스크 추적 시스템 (cleanupPlayer에서 일괄 취소) ===
     private final Map<UUID, java.util.List<org.bukkit.scheduler.BukkitTask>> activeTasks = new HashMap<>();
@@ -86,6 +88,12 @@ public class RelicAbilityHandler implements Listener {
             tasks.forEach(t -> { if (t != null && !t.isCancelled()) t.cancel(); });
         }
     }
+
+    /** #001 벼락 내부 쿨타임 조회 */
+    public Long getLastLightningTime(UUID id) { return lightningCooldown.get(id); }
+    /** #001 벼락 내부 쿨타임 설정 */
+    public void setLastLightningTime(UUID id, long time) { lightningCooldown.put(id, time); }
+
     // #006용 데이터 클래스
     public static class LeapData {
         public Location origin;
@@ -1558,12 +1566,22 @@ public class RelicAbilityHandler implements Listener {
                 if (ticks > 1200) { // 60초 종료
                     this.cancel();
                     active001Omega.remove(id);
+                    lightningCooldown.remove(id);
                     if (player.isOnline()) {
                         player.sendMessage("§c[태초의 별] 태초의 지배자 권능이 소멸했습니다.");
+                        player.sendMessage("§4[태초의 별] 5분 뒤 정신력이 완전히 소진됩니다...");
                         if (player.getGameMode() != org.bukkit.GameMode.CREATIVE && player.getGameMode() != org.bukkit.GameMode.SPECTATOR) {
                             player.setAllowFlight(false);
                             player.setFlying(false);
                         }
+                        // 5분(6000틱) 뒤 정신력 0으로
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                            if (player.isOnline()) {
+                                plugin.getSanityManager().setSanity(player, 0);
+                                player.sendMessage("§4[태초의 별] 태초의 힘을 사용한 대가로 정신력이 완전히 소진되었습니다.");
+                                player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_WITHER_DEATH, 0.5f, 0.5f);
+                            }
+                        }, 6000L);
                     }
                     return;
                 }
@@ -1628,6 +1646,7 @@ public class RelicAbilityHandler implements Listener {
         active003TrackerWait.remove(id);
         pending019Relic.remove(id);
         cooldown005.remove(id);
+        lightningCooldown.remove(id);
         
         // 모든 추적 태스크 일괄 취소
         cancelAllTasks(id);

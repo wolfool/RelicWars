@@ -74,6 +74,16 @@ public class RelicListener implements Listener {
             if (plugin.getRelicAbilityHandler().active001Omega.contains(player.getUniqueId())) {
                 org.bukkit.inventory.ItemStack handItem = player.getInventory().getItemInMainHand();
                 if (handItem == null || handItem.getType() == org.bukkit.Material.AIR) {
+                    // 벼락 내부 쿨타임 (3초)
+                    long now = System.currentTimeMillis();
+                    Long lastUse = plugin.getRelicAbilityHandler().getLastLightningTime(player.getUniqueId());
+                    if (lastUse != null && now - lastUse < 3000) {
+                        int remaining = (int) ((3000 - (now - lastUse)) / 1000) + 1;
+                        player.sendActionBar(net.kyori.adventure.text.Component.text("§c[심판의 벼락] 재시전까지 " + remaining + "초"));
+                        return;
+                    }
+                    plugin.getRelicAbilityHandler().setLastLightningTime(player.getUniqueId(), now);
+
                     // 빈 손 좌클릭 시 심판의 벼락
                     org.bukkit.block.Block targetBlock = player.getTargetBlockExact(100);
                     if (targetBlock != null) {
