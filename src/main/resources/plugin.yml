@@ -9,7 +9,7 @@ softdepend: [CraftEngine, BetterHud, BetterModel]
 commands:
   relic:
     description: 유물 관리 명령어
-    usage: /relic <give|take|transfer>
+    usage: /relic <give|take|transfer|altar|reload>
   team:
     description: 듀오 팀 관리 명령어
     usage: /team <invite|accept>
