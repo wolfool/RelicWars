@@ -1239,25 +1239,26 @@ public class RelicAbilityHandler implements Listener {
             return false; // 정신력 부족
         }
         
-        // 쿨타임 적용 (600초)
-        cooldown005.put(id, System.currentTimeMillis() + 600000L);
+        // 쿨타임 적용 (5400초 = 90분, 기획서 기준)
+        cooldown005.put(id, System.currentTimeMillis() + 5400000L);
         
         // 부활 처리
         player.setHealth(java.util.Objects.requireNonNull(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)).getValue()); // 풀피
         player.sendMessage("§c[불멸의 심장] 죽음을 거부하고 다시 일어섭니다!");
         
-        // 주변 넉백 및 번개
+        // 주변 넉백 및 번개 (기획서: 8블록, 2.5x + 0.8Y)
         for (org.bukkit.entity.Entity e : player.getNearbyEntities(8, 8, 8)) {
             if (!(e instanceof Player p)) continue;
             if (!plugin.getTeamManager().isSameTeam(player, p)) {
-                org.bukkit.util.Vector kb = p.getLocation().toVector().subtract(player.getLocation().toVector()).normalize().multiply(1.5).setY(0.5);
+                org.bukkit.util.Vector kb = p.getLocation().toVector().subtract(player.getLocation().toVector()).normalize().multiply(2.5).setY(0.8);
                 p.setVelocity(kb);
             }
         }
         
         org.bukkit.Bukkit.broadcast(net.kyori.adventure.text.Component.text("§6[경고] 누군가 불멸의 심장을 통해 부활했습니다! (" + player.getLocation().getBlockX() + ", ?, " + player.getLocation().getBlockZ() + ")"));
         
-        // 데미지 50% 감소
+        // 저항 II 8초 (기획서 명시) + 데미지 감소 추적
+        player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.RESISTANCE, 160, 1, false, false));
         active005DamageReduction.add(id);
         org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
             active005DamageReduction.remove(id);
