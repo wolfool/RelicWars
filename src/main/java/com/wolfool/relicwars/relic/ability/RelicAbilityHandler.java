@@ -1458,14 +1458,16 @@ public class RelicAbilityHandler implements Listener {
             UUID ownerId = UUID.fromString(ownerUuid);
             if (ownerId.equals(player.getUniqueId())) {
                 player.sendMessage("§c[절대 좌표 나침반] 자신이 소유한 유물은 추적할 수 없습니다.");
-                // 쿨타임 소모 방지를 위해 쿨타임 리셋
+                // 쿨타임 + 정신력 소모 방지를r
                 resetCooldownForRelic(player, 3);
+                plugin.getSanityManager().restoreSanity(player, getSanityCost(3, player));
                 return;
             }
             Player ownerPlayer = Bukkit.getPlayer(ownerId);
             if (ownerPlayer != null && plugin.getTeamManager().isSameTeam(player, ownerPlayer)) {
                 player.sendMessage("§c[절대 좌표 나침반] 같은 팀원이 소유한 유물은 추적할 수 없습니다.");
                 resetCooldownForRelic(player, 3);
+                plugin.getSanityManager().restoreSanity(player, getSanityCost(3, player));
                 return;
             }
         }
