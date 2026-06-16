@@ -63,7 +63,7 @@ public class GreedAssassin {
         new BukkitRunnable() {
             @Override
             public void run() {
-                if (entity == null || entity.isDead()) {
+                if (entity == null || entity.isDead() || !entity.isValid()) {
                     this.cancel();
                     // 사망 시 드랍 이벤트는 일반 EntityDeathEvent 에서 처리하거나 여기서 처리 가능
                     // (MVP 에서는 EntityDeathEvent로 일괄 처리 권장, 혹은 여기서 #013 뼈 드랍을 강제로 진행)
