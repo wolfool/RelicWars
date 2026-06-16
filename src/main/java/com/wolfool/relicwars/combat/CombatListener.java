@@ -442,10 +442,15 @@ public class CombatListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+
+        // 구조 시도 중이었으면 태스크 취소
+        BukkitTask reviveTask = reviveTasks.remove(player.getUniqueId());
+        if (reviveTask != null) reviveTask.cancel();
+
         if (combatManager.isDowned(player)) {
             // 다운 상태에서 나가면 즉시 사망 처리
             combatManager.killPlayer(player, null);
-        plugin.getRelicAbilityHandler().cleanupPlayer(player);
+            plugin.getRelicAbilityHandler().cleanupPlayer(player);
         } else {
             plugin.getRelicAbilityHandler().cleanupPlayer(player);
             // 랜뽑 (전투 태그 중 강제 종료) 처리

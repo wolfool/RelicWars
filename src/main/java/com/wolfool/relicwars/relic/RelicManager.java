@@ -176,7 +176,6 @@ public class RelicManager implements Manager {
         if (dropCount <= 0) return Collections.emptyList();
 
         // 가장 높은 번호(약한) 유물부터 강탈당하도록 내림차순 정렬
-        // 가장 높은 번호(약한) 유물부터 강탈당하도록 내림차순 정렬
         relics.sort((a, b) -> {
             int numA = RelicItemUtil.getRelicNumber(a);
             int numB = RelicItemUtil.getRelicNumber(b);

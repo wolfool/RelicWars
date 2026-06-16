@@ -316,11 +316,11 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                     }
                 }
                 case "stop" -> {
-                    if (!endingManager.isCaptureActive()) {
+                    if (!endingManager.isCaptureActive() && !endingManager.isEndingTriggered()) {
                         sender.sendMessage("§c[엔딩] 현재 진행 중인 점령전이 없습니다.");
                     } else {
-                        endingManager.stopCapture(false);
                         endingManager.resetEnding();
+                        Bukkit.broadcast(Component.text("§c[엔딩] 관리자에 의해 엔딩 제단 이벤트가 중단되었습니다."));
                         sender.sendMessage("§a[엔딩] 엔딩 제단 점령전을 중단하고 초기화했습니다.");
                     }
                 }
