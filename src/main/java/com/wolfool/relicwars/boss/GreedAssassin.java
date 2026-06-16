@@ -35,6 +35,9 @@ public class GreedAssassin {
         entity.setCustomNameVisible(true);
         entity.setRemoveWhenFarAway(false);
         
+        // BetterModel 커스텀 모델 적용 시도
+        com.wolfool.relicwars.integration.BetterModelHook.applyModel(entity, "greed_assassin");
+        
         // 타겟이 가진 유물 개수에 비례하여 강해짐
         int relicCount = plugin.getRelicManager().countPlayerRelics(target);
         double maxHp = 100 + (relicCount * 50);

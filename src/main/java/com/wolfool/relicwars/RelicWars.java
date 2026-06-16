@@ -41,6 +41,7 @@ public final class RelicWars extends JavaPlugin {
     private SanityManager sanityManager;
     private com.wolfool.relicwars.relic.RelicAcquisitionListener acquisitionListener;
     private com.wolfool.relicwars.relic.FootprintTracker footprintTracker;
+    private com.wolfool.relicwars.integration.IntegrationManager integrationManager;
 
     /**
      * 플러그인 인스턴스를 반환합니다. (싱글톤)
@@ -123,6 +124,10 @@ public final class RelicWars extends JavaPlugin {
         getServer().getPluginManager().registerEvents(acquisitionListener, this);
         getServer().getPluginManager().registerEvents(relicAbilityHandler, this);
 
+        // --- 5. 외부 플러그인 연동 (BetterHud / BetterModel / CraftEngine) ---
+        integrationManager = new com.wolfool.relicwars.integration.IntegrationManager(this);
+        integrationManager.initialize();
+
         getLogger().info("§a============================================");
         getLogger().info("§a  RelicWars v" + getDescription().getVersion() + " 활성화 완료!");
         getLogger().info("§a============================================");
@@ -147,6 +152,7 @@ public final class RelicWars extends JavaPlugin {
         if (combatManager != null) combatManager.shutdown();
         if (sealedRelicManager != null) sealedRelicManager.shutdown();
         if (acquisitionListener != null) acquisitionListener.shutdown();
+        if (integrationManager != null) integrationManager.shutdown();
         if (relicManager != null) relicManager.shutdown();
 
         // --- 데이터베이스 연결 종료 ---
@@ -186,4 +192,5 @@ public final class RelicWars extends JavaPlugin {
     public SanityManager getSanityManager() { return sanityManager; }
     public com.wolfool.relicwars.relic.FootprintTracker getFootprintTracker() { return footprintTracker; }
     public com.wolfool.relicwars.relic.RelicAcquisitionListener getAcquisitionListener() { return acquisitionListener; }
+    public com.wolfool.relicwars.integration.IntegrationManager getIntegrationManager() { return integrationManager; }
 }
