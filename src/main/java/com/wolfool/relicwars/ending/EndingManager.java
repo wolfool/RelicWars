@@ -47,6 +47,11 @@ public class EndingManager implements Manager {
     private float decayRateEmpty = 0.5f;
     private float decayRateEnemy = 2.0f;
 
+    // 준비 딜레이 상태
+    private boolean isPreparing = false;
+    private BukkitTask preparationTask;
+    private BukkitTask preparationCountdownTask;
+
     public EndingManager(RelicWars plugin) {
         this.plugin = plugin;
     }
@@ -112,47 +117,159 @@ public class EndingManager implements Manager {
     // ======================== \uc810\ub839\uc804 \uc2dc\uc791/\uc911\ub2e8 ========================
 
     public void startCapture(String teamId, UUID soloId) {
-        if (isCaptureActive) {
-            plugin.getLogger().warning("[EndingManager] \uc774\ubbf8 \uc810\ub839\uc804\uc774 \uc9c4\ud589 \uc911\uc785\ub2c8\ub2e4.");
+        if (isCaptureActive || isPreparing) {
+            plugin.getLogger().warning("[EndingManager] 이미 점령전이 진행/준비 중입니다.");
             return;
         }
 
         isEndingTriggered = true;
-        isCaptureActive = true;
         capturingTeamId = teamId;
         capturingSoloId = soloId;
         captureProgress = 0.0f;
 
-        altarLocation = Bukkit.getWorlds().get(0).getSpawnLocation().clone().add(0, 1, 0);
+        // 제단 위치 결정: config 우선, 없으면 월드 스폰
+        altarLocation = resolveAltarLocation();
 
-        altarMarker = altarLocation.getWorld().spawn(altarLocation, ArmorStand.class, stand -> {
-            stand.setVisible(false);
-            stand.setGravity(false);
-            stand.setCustomName("\u00a76\u2726 \uc5d4\ub529 \uc81c\ub2e8 \u2726");
-            stand.setCustomNameVisible(true);
-            stand.setGlowing(true);
-            stand.setMarker(true);
-        });
+        String capturerName = getCapturerDisplayName();
+        int delayMinutes = plugin.getConfigManager().getPreparationDelayMinutes();
 
-        bossBar = BossBar.bossBar(
-                Component.text("\u2694 \uc5d4\ub529 \uc81c\ub2e8 \uc810\ub839 \u2014 0%", NamedTextColor.GOLD),
-                0.0f,
-                BossBar.Color.PURPLE,
-                BossBar.Overlay.PROGRESS
-        );
+        if (delayMinutes <= 0) {
+            // 즉시 시작
+            beginCapture(capturerName);
+        } else {
+            // 준비 시간 시작
+            isPreparing = true;
+            Bukkit.broadcast(Component.text("§5============================================="));
+            Bukkit.broadcast(Component.text("§d[엔딩] §f" + capturerName + "§f 팀이 엔딩 조건을 충족했습니다!"));
+            Bukkit.broadcast(Component.text("§e엔딩 제단이 곧 활성화됩니다!"));
+            Bukkit.broadcast(Component.text("§e좌표: X:" + altarLocation.getBlockX() + " Y:" + altarLocation.getBlockY() + " Z:" + altarLocation.getBlockZ()));
+            Bukkit.broadcast(Component.text("§c§l" + delayMinutes + "분 후 점령전이 시작됩니다! 제단으로 이동하세요!"));
+            Bukkit.broadcast(Component.text("§5============================================="));
+
+            // 준비 BossBar 표시
+            bossBar = BossBar.bossBar(
+                    Component.text("⚔ 엔딩 제단 준비 중 — " + delayMinutes + "분 후 시작", NamedTextColor.GOLD),
+                    1.0f,
+                    BossBar.Color.YELLOW,
+                    BossBar.Overlay.PROGRESS
+            );
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                p.showBossBar(bossBar);
+            }
+
+            // 제단 마커 미리 설치
+            altarMarker = altarLocation.getWorld().spawn(altarLocation, ArmorStand.class, stand -> {
+                stand.setVisible(false);
+                stand.setGravity(false);
+                stand.setCustomName("§6✦ 엔딩 제단 (준비 중) ✦");
+                stand.setCustomNameVisible(true);
+                stand.setGlowing(true);
+                stand.setMarker(true);
+            });
+
+            // 카운트다운 (매 1분마다 알림)
+            final int totalSeconds = delayMinutes * 60;
+            final long startTick = Bukkit.getCurrentTick();
+            preparationCountdownTask = new BukkitRunnable() {
+                @Override
+                public void run() {
+                    long elapsed = (Bukkit.getCurrentTick() - startTick) / 20;
+                    int remaining = totalSeconds - (int) elapsed;
+                    if (remaining <= 0) {
+                        this.cancel();
+                        return;
+                    }
+                    float progress = (float) remaining / totalSeconds;
+                    if (bossBar != null) {
+                        int mins = remaining / 60;
+                        int secs = remaining % 60;
+                        String timeStr = mins > 0 ? mins + "분 " + secs + "초" : secs + "초";
+                        bossBar.name(Component.text("⚔ 엔딩 제단 준비 중 — " + timeStr + " 후 시작", NamedTextColor.GOLD));
+                        bossBar.progress(Math.max(0, Math.min(1.0f, progress)));
+                    }
+                    // 1분마다 알림
+                    if (remaining % 60 == 0 && remaining > 0) {
+                        Bukkit.broadcast(Component.text("§e[엔딩] §c점령전 시작까지 " + (remaining / 60) + "분 남았습니다!"));
+                    }
+                    // 30초, 10초 알림
+                    if (remaining == 30) {
+                        Bukkit.broadcast(Component.text("§e[엔딩] §c§l점령전 시작까지 30초!"));
+                    }
+                    if (remaining == 10) {
+                        Bukkit.broadcast(Component.text("§e[엔딩] §c§l점령전 시작까지 10초!"));
+                    }
+                }
+            }.runTaskTimer(plugin, 20L, 20L);
+
+            // 딜레이 후 점령전 시작
+            preparationTask = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                isPreparing = false;
+                if (preparationCountdownTask != null) {
+                    preparationCountdownTask.cancel();
+                    preparationCountdownTask = null;
+                }
+                beginCapture(capturerName);
+            }, (long) delayMinutes * 60 * 20);
+        }
+    }
+
+    /**
+     * config에서 제단 위치를 결정합니다.
+     * config에 world가 설정되어 있으면 해당 좌표 사용, 아니면 월드 스폰 사용.
+     */
+    private Location resolveAltarLocation() {
+        String worldName = plugin.getConfigManager().getAltarWorldName();
+        if (worldName != null && !worldName.isEmpty()) {
+            org.bukkit.World world = Bukkit.getWorld(worldName);
+            if (world != null) {
+                return new Location(world,
+                        plugin.getConfigManager().getAltarX(),
+                        plugin.getConfigManager().getAltarY(),
+                        plugin.getConfigManager().getAltarZ());
+            }
+            plugin.getLogger().warning("[EndingManager] config의 엔딩 제단 월드 '" + worldName + "'를 찾을 수 없습니다. 스폰 지점을 사용합니다.");
+        }
+        return Bukkit.getWorlds().get(0).getSpawnLocation().clone().add(0, 1, 0);
+    }
+
+    /**
+     * 실제 점령전을 시작합니다 (준비 딜레이 후 호출).
+     */
+    private void beginCapture(String capturerName) {
+        isCaptureActive = true;
+
+        // 기존 마커 이름 변경
+        if (altarMarker != null && !altarMarker.isDead()) {
+            altarMarker.setCustomName("§6✦ 엔딩 제단 ✦");
+        }
+
+        // BossBar 업데이트
+        if (bossBar != null) {
+            bossBar.name(Component.text("⚔ 엔딩 제단 점령 — 0%", NamedTextColor.GOLD));
+            bossBar.progress(0.0f);
+            bossBar.color(BossBar.Color.PURPLE);
+        } else {
+            bossBar = BossBar.bossBar(
+                    Component.text("⚔ 엔딩 제단 점령 — 0%", NamedTextColor.GOLD),
+                    0.0f,
+                    BossBar.Color.PURPLE,
+                    BossBar.Overlay.PROGRESS
+            );
+        }
 
         for (Player p : Bukkit.getOnlinePlayers()) {
             p.showBossBar(bossBar);
         }
 
-        String capturerName = getCapturerDisplayName();
-        Bukkit.broadcast(Component.text("\u00a75============================================="));
-        Bukkit.broadcast(Component.text("\u00a7d[\uc5d4\ub529] \u00a7f" + capturerName + "\u00a7f \ud300\uc774 \uc5d4\ub529 \uc870\uac74\uc744 \ucda9\uc871\ud588\uc2b5\ub2c8\ub2e4!"));
-        Bukkit.broadcast(Component.text("\u00a7e\uc5d4\ub529 \uc81c\ub2e8\uc774 \uc6d4\ub4dc \uc2a4\ud3f0\uc5d0 \ub098\ud0c0\ub0ac\uc2b5\ub2c8\ub2e4!"));
-        Bukkit.broadcast(Component.text("\u00a7e\uc88c\ud45c: X:" + altarLocation.getBlockX() + " Y:" + altarLocation.getBlockY() + " Z:" + altarLocation.getBlockZ()));
-        Bukkit.broadcast(Component.text("\u00a7c\uc81c\ub2e8\uc744 \uc810\ub839\ud558\uc5ec \uac8c\uc774\uc9c0\ub97c 100%\uae4c\uc9c0 \ucc44\uc6b0\uba74 \uc2dc\uc98c \uc2b9\ub9ac!"));
-        Bukkit.broadcast(Component.text("\u00a7c\uc801\uc774 \uc9c4\uc785\ud558\uba74 \uc810\ub839\uc774 \uc911\ub2e8\ub429\ub2c8\ub2e4! \uc81c\ub2e8\uc744 \uc0ac\uc218\ud558\uc138\uc694!"));
-        Bukkit.broadcast(Component.text("\u00a75============================================="));
+        Bukkit.broadcast(Component.text("§5============================================="));
+        Bukkit.broadcast(Component.text("§d§l[엔딩] 점령전이 시작되었습니다!"));
+        Bukkit.broadcast(Component.text("§c제단을 점령하여 게이지를 100%까지 채우면 시즌 승리!"));
+        Bukkit.broadcast(Component.text("§c적이 진입하면 점령이 중단됩니다! 제단을 사수하세요!"));
+        Bukkit.broadcast(Component.text("§5============================================="));
+
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.0f);
+        }
 
         captureTickTask = new BukkitRunnable() {
             @Override
@@ -164,7 +281,6 @@ public class EndingManager implements Manager {
 
     public void stopCapture(boolean silent) {
         isCaptureActive = false;
-        captureProgress = 0.0f;
 
         if (captureTickTask != null) {
             captureTickTask.cancel();
@@ -397,8 +513,19 @@ public class EndingManager implements Manager {
     public void resetEnding() {
         stopCapture(true);
         isEndingTriggered = false;
+        isPreparing = false;
+        captureProgress = 0.0f;
         capturingTeamId = null;
         capturingSoloId = null;
+        // 준비 딜레이 태스크 정리
+        if (preparationTask != null) {
+            try { preparationTask.cancel(); } catch (IllegalStateException ignored) {}
+            preparationTask = null;
+        }
+        if (preparationCountdownTask != null) {
+            try { preparationCountdownTask.cancel(); } catch (IllegalStateException ignored) {}
+            preparationCountdownTask = null;
+        }
         // 기존 체크 태스크가 남아있으면 cancel 후 재시작
         if (endingCheckTask != null) {
             try { endingCheckTask.cancel(); } catch (IllegalStateException ignored) {}

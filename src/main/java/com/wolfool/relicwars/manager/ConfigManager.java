@@ -59,6 +59,9 @@ public class ConfigManager {
     // --- 엔딩(Ending) ---
     private boolean endingRequiredAllSpawned;
     private int endingRequiredTeamRelics;
+    private String altarWorldName;
+    private double altarX, altarY, altarZ;
+    private int preparationDelayMinutes;
 
     // --- 추가 캐시된 값 ---
     private int maxRelicStealsPerDowned;
@@ -145,6 +148,11 @@ public class ConfigManager {
         // --- 엔딩 ---
         endingRequiredAllSpawned = config.getBoolean("ending.required-all-spawned", true);
         endingRequiredTeamRelics = config.getInt("ending.required-team-relics-to-summon", 10);
+        altarWorldName = config.getString("ending.altar-location.world", "");
+        altarX = config.getDouble("ending.altar-location.x", 0);
+        altarY = config.getDouble("ending.altar-location.y", 100);
+        altarZ = config.getDouble("ending.altar-location.z", 0);
+        preparationDelayMinutes = config.getInt("ending.preparation-delay-minutes", 5);
 
         // --- 추가 캐시 ---
         maxRelicStealsPerDowned = config.getInt("combat.max-relic-steals", 3);
@@ -212,6 +220,11 @@ public class ConfigManager {
     // --- 엔딩 ---
     public boolean isEndingRequiredAllSpawned() { return endingRequiredAllSpawned; }
     public int getEndingRequiredTeamRelics() { return endingRequiredTeamRelics; }
+    public String getAltarWorldName() { return altarWorldName; }
+    public double getAltarX() { return altarX; }
+    public double getAltarY() { return altarY; }
+    public double getAltarZ() { return altarZ; }
+    public int getPreparationDelayMinutes() { return preparationDelayMinutes; }
     public int getMaxRelicStealsPerDowned() { return maxRelicStealsPerDowned; }
     public int getMaxRelicsPerTeam() { return maxRelicsPerTeam; }
 }

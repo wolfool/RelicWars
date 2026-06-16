@@ -85,8 +85,21 @@ event:
 ending:
   required-all-spawned: true     # 30개 유물이 모두 1번 이상 등장해야 하는지
   required-team-relics-to-summon: 10  # 엔딩 발동을 위해 한 팀이 보유해야 하는 유물 개수
+
+  # --- 제단 위치 설정 ---
+  # 설정하지 않으면(world가 비어있으면) 월드 스폰 지점에 자동 생성됩니다.
+  altar-location:
+    world: ""                    # 월드 이름 (예: "world")
+    x: 0
+    y: 100
+    z: 0
+
+  # --- 점령 준비 시간 ---
+  preparation-delay-minutes: 5   # 엔딩 조건 충족 후 점령 가능까지 대기 시간 (분). 0이면 즉시 시작
+
   # --- 점령전 설정 ---
   altar-radius: 15               # 제단 점령 반경 (블록)
   capture-rate-per-player: 1.0   # 팀원 1명당 초당 게이지 상승 (%)
   decay-rate-empty: 0.5          # 비어있을 때 초당 게이지 감소 (%)
   decay-rate-enemy: 2.0          # 적만 있을 때 초당 게이지 감소 (%)
+
