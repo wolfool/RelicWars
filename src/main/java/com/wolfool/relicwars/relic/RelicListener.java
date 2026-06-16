@@ -135,9 +135,10 @@ public class RelicListener implements Listener {
             return;
         }
 
-        // 쥐타임 중인지 체크 (태초의 지배자 상태면 쿨타임 무시)
+        // 쿨타임 중인지 체크 (태초의 지배자 상태면 #001 제외한 다른 유물 쿨타임 무시)
         boolean isOmega = plugin.getRelicAbilityHandler().active001Omega.contains(player.getUniqueId());
-        if (!isOmega && com.wolfool.relicwars.relic.RelicItemUtil.isOnCooldown(item)) {
+        boolean cooldownBypass = isOmega && relicNumber != 1; // #001 자체는 쿨타임 면제 불가
+        if (!cooldownBypass && com.wolfool.relicwars.relic.RelicItemUtil.isOnCooldown(item)) {
             int remaining = com.wolfool.relicwars.relic.RelicItemUtil.getRemainingCooldownSeconds(item);
             player.sendMessage("§c[RelicWars] " + def.getDisplayName() +
                     " §c쿨타임 중입니다. (남은 시간: §e" +
@@ -151,7 +152,7 @@ public class RelicListener implements Listener {
         // false를 반환하면 실패 (대상 없음 등) → 쿨타임 미적용
         boolean success = plugin.getRelicAbilityHandler().execute(player, def);
         if (success && def.getCooldownSeconds() > 0) {
-            if (!isOmega) {
+            if (!cooldownBypass) {
                 com.wolfool.relicwars.relic.RelicItemUtil.startCooldown(item, def.getCooldownSeconds());
                 player.sendMessage("§a[RelicWars] " + def.getDisplayName() +
                         " §a능력 발동! (쿨타임: §e" +

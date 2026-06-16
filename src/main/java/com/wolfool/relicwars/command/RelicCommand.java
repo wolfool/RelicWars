@@ -361,6 +361,12 @@ public class RelicCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            // 3블록 이내 거리 체크
+            if (!player.getWorld().equals(target.getWorld()) || player.getLocation().distanceSquared(target.getLocation()) > 9.0) {
+                player.sendMessage("§c[RelicWars] 팀원이 3블록 이내에 있어야 양도할 수 있습니다.");
+                return true;
+            }
+
             startTransferTask(player, target);
             return true;
         }
