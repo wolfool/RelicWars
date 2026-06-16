@@ -200,6 +200,12 @@ public class CombatListener implements Listener {
         // 같은 팀이면 상호작용 불가
         if (plugin.getTeamManager().isSameTeam(stealer, target)) return;
 
+        // 다운 직후 무적 시간(2초) 중에는 강탈/적출 불가
+        if (combatManager.isInvincible(target)) {
+            stealer.sendMessage("§c[RelicWars] 대상이 아직 무적 상태입니다.");
+            return;
+        }
+
         // #002 탐욕의 적출자 발동 (우클릭만으로 가능, 웅크리기 불필요)
         org.bukkit.inventory.ItemStack handItem = stealer.getInventory().getItemInMainHand();
         if (com.wolfool.relicwars.relic.RelicItemUtil.isRelic(handItem) && com.wolfool.relicwars.relic.RelicItemUtil.getRelicNumber(handItem) == 2) {

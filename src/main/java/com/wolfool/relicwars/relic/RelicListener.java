@@ -70,6 +70,7 @@ public class RelicListener implements Listener {
         if (event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_AIR || event.getAction() == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK) {
             org.bukkit.entity.Player player = event.getPlayer();
             if (plugin.getCombatManager().isDowned(player)) return; // 다운 중 사용 불가
+            if (plugin.getRelicAbilityHandler().isEmpAffected(player.getUniqueId())) return; // EMP 중 사용 불가
             if (plugin.getRelicAbilityHandler().active001Omega.contains(player.getUniqueId())) {
                 org.bukkit.inventory.ItemStack handItem = player.getInventory().getItemInMainHand();
                 if (handItem == null || handItem.getType() == org.bukkit.Material.AIR) {
