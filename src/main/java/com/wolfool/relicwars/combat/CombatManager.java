@@ -42,6 +42,9 @@ public class CombatManager implements Manager {
     // UUID -> 강탈 당한 횟수
     private final Map<UUID, Integer> stealCounts = new HashMap<>();
 
+    // 처형 진행 중인 플레이어 (재다운 방지용)
+    private final java.util.Set<UUID> executingPlayers = new java.util.HashSet<>();
+
     public CombatManager(RelicWars plugin) {
         this.plugin = plugin;
     }
@@ -61,6 +64,8 @@ public class CombatManager implements Manager {
         }
         autoExecuteTasks.clear();
         combatTags.clear();
+        stealCounts.clear();
+        executingPlayers.clear();
         plugin.getLogger().info("§a[RelicWars] CombatManager 종료.");
     }
 
@@ -78,6 +83,9 @@ public class CombatManager implements Manager {
      * 체력이 0이 되는 순간 호출되어야 합니다.
      */
     public void setDowned(Player player) {
+        // 재진입 방지: 이미 다운됐거나 처형 중이면 무시
+        if (isDowned(player) || executingPlayers.contains(player.getUniqueId())) return;
+
         // #005 불멸의 심장은 CombatListener.onPlayerDamage에서 이미 처리됨
 
         downedPlayers.put(player.getUniqueId(), System.currentTimeMillis());
@@ -98,7 +106,7 @@ public class CombatManager implements Manager {
 
         player.setHealth(20.0); // 다운 시 체력은 꽉 찬 상태로 유지 (시스템적 체력)
         player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, Integer.MAX_VALUE, 4, false, false, false));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, Integer.MAX_VALUE, 250, false, false, false)); // 점프 불가
+        player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, Integer.MAX_VALUE, 128, false, false, false)); // 점프 불가 (128 = 음수 점프력)
         player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, Integer.MAX_VALUE, 0, false, false, false)); // 시야 제한
 
         player.sendMessage("§c[RelicWars] 치명상을 입고 쓰러졌습니다! (다운 상태)");
@@ -239,8 +247,10 @@ public class CombatManager implements Manager {
      * 유저를 사망시키고 스폰으로 보냅니다. (기획서 수정: 사망 시 Steal 규칙에 따라 추가 드랍)
      */
     public void executePlayer(Player victim, Player attacker) {
+        executingPlayers.add(victim.getUniqueId());
         clearDownedState(victim);
         victim.setHealth(0.0);
+        executingPlayers.remove(victim.getUniqueId());
         victim.sendMessage("§c[RelicWars] 처형당했습니다. (추가 유물 드랍 없음)");
         org.bukkit.Bukkit.broadcast(net.kyori.adventure.text.Component.text("§c[처형] §f" + victim.getName() + "§c님이 처형당했습니다."));
     }
@@ -259,8 +269,10 @@ public class CombatManager implements Manager {
             Bukkit.broadcast(net.kyori.adventure.text.Component.text("§e[소문] §f" + victim.getName() + "§e이(가) 처형되어 유물 " + stealDrops.size() + "개가 바닥에 흩어졌습니다!"));
         }
 
+        executingPlayers.add(victim.getUniqueId());
         clearDownedState(victim);
         victim.setHealth(0.0);
+        executingPlayers.remove(victim.getUniqueId());
 
         if (attacker != null) {
             Bukkit.broadcast(net.kyori.adventure.text.Component.text("§c[RelicWars] §f" + victim.getName() + "§c님이 §f" + attacker.getName() + "§c님에게 처형당했습니다!"));

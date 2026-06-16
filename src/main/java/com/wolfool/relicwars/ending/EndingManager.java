@@ -399,6 +399,10 @@ public class EndingManager implements Manager {
         isEndingTriggered = false;
         capturingTeamId = null;
         capturingSoloId = null;
+        // 기존 체크 태스크가 남아있으면 cancel 후 재시작
+        if (endingCheckTask != null) {
+            try { endingCheckTask.cancel(); } catch (IllegalStateException ignored) {}
+        }
         startEndingCheckTask();
     }
 }

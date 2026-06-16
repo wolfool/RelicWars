@@ -1380,7 +1380,7 @@ public class RelicAbilityHandler implements Listener {
     private boolean execute005(Player player) {
         player.sendMessage("§6[불멸의 심장] 이 유물은 패시브 유물입니다.");
         player.sendMessage("§7  치명상을 입을 때 자동으로 발동하여 체력을 회복하고 적을 밀쳐냅니다.");
-        player.sendMessage("§7  쿨타임: 10분 | 정신력 소모: 30");
+        player.sendMessage("§7  쿨타임: 90분 | 정신력 소모: 30");
         return false; // 패시브 — 쿨타임/정신력 소모 없음
     }
 

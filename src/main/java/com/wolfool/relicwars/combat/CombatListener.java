@@ -413,7 +413,8 @@ public class CombatListener implements Listener {
                         com.wolfool.relicwars.util.RumorUtil.broadcastRumor(rescuer.getLocation(), "§b[소문] %s쪽에서 다급한 심박음이 들렸습니다.");
                     }
                     
-                    reviveTasks.remove(rescuer.getUniqueId()).cancel();
+                    BukkitTask reviveTask = reviveTasks.remove(rescuer.getUniqueId());
+                    if (reviveTask != null) reviveTask.cancel();
                 }
             }
         }, 0L, 5L); // 5틱(0.25초)마다 체크
